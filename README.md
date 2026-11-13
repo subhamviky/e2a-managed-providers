@@ -103,7 +103,7 @@ Everything below runs with no account (in CI on every push):
 | Check | Result |
 |---|---|
 | This package's tests: profiles, every LLM adapter through its **real SDK** (unary, streaming, tool round trip, structured output, per-call override, refusal and fallback, E2A DLP still applied), AWS services against AWS's own API models (botocore Stubber), DynamoDB on moto, Azure/GCP/Llama Stack REST shapes, the claim and checkpoint contract on DynamoDB, Cosmos DB and Firestore, delegated runtimes, IaC manifests, release gate, E2A conformance | 88 passed |
-| The three projects' **own** test suites with the model binding swapped to each of the 5 profiles (O2C 39, reconciliation 36, audit 23) | 98 × 5 passed, no project file changed |
+| The three projects' **own** test suites, at their latest `main` (each in its own venv on the E2A release it pins: v1.4.0 or v1.5.0), with the model binding swapped to each of the 5 profiles (O2C 39, reconciliation 44, audit 23; emulator-only tests skipped) | 106 × 5 passed, no project file changed |
 | Landscape scenario per profile (`examples/run_landscape.py`): policy answer, payment exceptions, order placed, order paused for four-eyes approval, audit finding flagged and explained | all 5 profiles |
 | Java adapters (anthropic-java, openai-java, google-genai) against local wire replay | 5 passed |
 | Terraform `fmt` for every module (locally); `validate` + `test` with mock providers (CI) | fmt clean; CI runs the rest |

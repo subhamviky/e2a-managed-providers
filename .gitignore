@@ -10,3 +10,4 @@ java/target/
 .terraform.lock.hcl
 claude-lock.json.bak
 .env
+.venvs/
