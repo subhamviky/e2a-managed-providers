@@ -49,18 +49,18 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Install the package and the projects (their pinned frameworks come with the package)
-        run: |
-          pip install -e "e2a-managed-providers[dev]" "moto[dynamodb,sqs]" mangum fastapi jsonschema \
-            "capability-oriented-dsa @ git+https://github.com/subhamviky/capability-oriented-dsa.git@v0.3.0"
-          for p in order-to-cash-agentic-ai/o2c-agent-service aws-reconciliation-engine/reconciliation-service \
-                   financial-settlement-platform/audit-ai-service; do pip install -e "$p" --no-deps; done
-      - name: Project test suites on ${{ matrix.profile }} (offline replay)
+      - name: Tooling for the runner (profiles CLI)
+        run: pip install -e e2a-managed-providers
+      - name: Project test suites on ${{ matrix.profile }} (offline replay, one venv per project)
         working-directory: e2a-managed-providers
-        run: PROJECTS_DIR=.. ./examples/run_project_suites.sh ${{ matrix.profile }}
+        # The projects pin different E2A releases, so each runs in its own venv built from
+        # its own pyproject; this package is added there without its dependencies.
+        run: ISOLATED=1 PROJECTS_DIR=.. ./examples/run_project_suites.sh ${{ matrix.profile }}
       - name: Landscape scenario on ${{ matrix.profile }}
         working-directory: e2a-managed-providers
-        run: python examples/run_landscape.py ${{ matrix.profile }}
+        run: |
+          .venvs/o2c-agent-service/bin/pip install -q -e ../financial-settlement-platform/audit-ai-service --no-deps
+          .venvs/o2c-agent-service/bin/python examples/run_landscape.py ${{ matrix.profile }}
 
   terraform:
     runs-on: ubuntu-latest
