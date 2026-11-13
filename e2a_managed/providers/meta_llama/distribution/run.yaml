@@ -1,0 +1,51 @@
+# Llama Stack distribution for the meta_llama profile (shipped to the ECS service).
+# Field names follow the Llama Stack distribution format; check them against the pinned
+# server version when you deploy (the project is moving fast, see docs/CHALLENGES.md).
+version: 2
+image_name: e2a-llama-aws
+apis: [inference, safety, vector_io, tool_runtime, agents, files, prompts]
+providers:
+  inference:
+    - provider_id: bedrock                 # Llama models on Amazon Bedrock (AWS-managed inference)
+      provider_type: remote::bedrock
+      config:
+        region_name: ${env.AWS_REGION:=us-east-1}
+    - provider_id: vllm-guard              # Llama Guard served by vLLM (GPU task / SageMaker)
+      provider_type: remote::vllm
+      config:
+        url: ${env.LLAMA_GUARD_URL}
+  safety:
+    - provider_id: llama-guard
+      provider_type: inline::llama-guard
+      config:
+        excluded_categories: []
+  vector_io:
+    - provider_id: pgvector                # Aurora PostgreSQL with pgvector
+      provider_type: remote::pgvector
+      config:
+        host: ${env.PGVECTOR_HOST}
+        port: ${env.PGVECTOR_PORT:=5432}
+        db: ${env.PGVECTOR_DB:=llamastack}
+        user: ${env.PGVECTOR_USER:=llamastack}
+        password: ${env.PGVECTOR_PASSWORD}   # injected from Secrets Manager by ECS
+  tool_runtime:
+    - provider_id: model-context-protocol  # MCP servers (the E2A services' /mcp routes)
+      provider_type: remote::model-context-protocol
+      config: {}
+models:
+  - model_id: meta.llama4-maverick-17b-instruct-v1:0
+    provider_id: bedrock
+    model_type: llm
+  - model_id: amazon.titan-embed-text-v2:0
+    provider_id: bedrock
+    model_type: embedding
+    metadata: {embedding_dimension: 1024}
+  - model_id: Llama-Guard-4-12B
+    provider_id: vllm-guard
+    model_type: llm
+shields:
+  - shield_id: llama-guard
+    provider_id: llama-guard
+    provider_shield_id: Llama-Guard-4-12B
+server:
+  port: 8321

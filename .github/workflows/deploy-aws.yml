@@ -1,0 +1,52 @@
+# Deploys an AWS profile (anthropic_bedrock, anthropic_claude_platform_aws, meta_llama_aws).
+# Inert until the repository variable E2A_DEPLOY_ENABLED is 'true' and an OIDC role exists.
+name: deploy-aws
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        type: choice
+        options: [anthropic_bedrock, anthropic_claude_platform_aws, meta_llama_aws]
+      tenant:
+        default: acme
+      live_smoke:
+        type: boolean
+        default: false
+
+permissions:
+  id-token: write   # GitHub OIDC -> AWS IAM role; no long-lived keys
+  contents: read
+
+jobs:
+  deploy:
+    if: vars.E2A_DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.profile }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[anthropic-aws,meta-llama]"
+      - name: Release gate (static checks, profile verification, tests)
+        run: python -c "from e2a_managed import bindings_from_profile as b; import sys; r=b('${{ inputs.profile }}').release_pipeline.run_pipeline({'faithfulness_threshold':0.8}); print(r['status']); sys.exit(r['status']!='SUCCESS')"
+      - name: Landing-zone variables from the profile
+        run: python -c "from e2a_managed import bindings_from_profile as b; x=b('${{ inputs.profile }}'); type(x.infra_provisioner)(x.config(), out_dir='e2a_managed/clouds/aws/terraform').provision_landing_zone('${{ inputs.tenant }}','POOL','HIGH', config=x.profile.config)"
+      - uses: hashicorp/setup-terraform@v3
+      - working-directory: e2a_managed/clouds/aws/terraform
+        run: terraform init && terraform plan -out plan.tfplan && terraform apply -auto-approve plan.tfplan
+      - name: Claude Managed Agents (ant apply)
+        if: inputs.profile == 'anthropic_claude_platform_aws'
+        working-directory: e2a_managed/providers/anthropic_aws/managed_agents
+        env:
+          ANTHROPIC_AWS_WORKSPACE_ID: ${{ vars.ANTHROPIC_AWS_WORKSPACE_ID }}
+        run: ant apply --yes agents
+      - name: Live smoke (one real model call per seam)
+        if: inputs.live_smoke
+        env:
+          E2A_PROVIDER_PROFILE: ${{ inputs.profile }}
+        run: python examples/live_smoke.py

@@ -1,0 +1,12 @@
+__pycache__/
+*.egg-info/
+.venv/
+.pytest_cache/
+java/target/
+.terraform/
+*.tfstate*
+*.tfplan
+*.auto.tfvars.json
+.terraform.lock.hcl
+claude-lock.json.bak
+.env

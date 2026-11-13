@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "e2a-managed-providers"
+version = "0.1.0"
+description = "Frontier-provider managed services (Anthropic, OpenAI, Google, Meta) behind the vendor-neutral E2A contracts, selected by configuration."
+requires-python = ">=3.12"
+license = "MIT"
+dependencies = [
+  # The E2A contracts this package implements. Pin the same tag the projects use.
+  "e2a-framework @ git+https://github.com/subhamviky/e2a-framework.git@v1.3.0",
+  "pyyaml>=6.0",
+  "httpx>=0.27",
+]
+
+# Each provider's SDKs are optional: a deployment installs only the profile it runs.
+[project.optional-dependencies]
+anthropic-aws = ["anthropic[bedrock,aws]>=2.0", "boto3>=1.40"]
+openai-azure = ["openai>=3.0", "azure-identity>=1.19"]
+google-vertex = ["google-genai>=3.0", "google-auth>=2.30"]
+meta-llama = ["llama-stack-client>=0.7", "boto3>=1.40"]
+aws = ["boto3>=1.40"]
+azure = ["azure-identity>=1.19"]
+gcp = ["google-auth>=2.30"]
+otel = ["opentelemetry-sdk>=1.30", "opentelemetry-exporter-otlp>=1.30"]
+all = ["e2a-managed-providers[anthropic-aws,openai-azure,google-vertex,meta-llama,otel]"]
+dev = ["pytest>=8.2", "pytest-asyncio>=0.24", "respx>=0.21", "e2a-managed-providers[all]"]
+
+[tool.setuptools.packages.find]
+include = ["e2a_managed*"]
+
+[tool.setuptools.package-data]
+"*" = ["*.yaml", "*.yml", "*.md", "*.tf", "*.hcl", "*.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"

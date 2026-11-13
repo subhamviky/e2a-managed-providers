@@ -1,0 +1,144 @@
+# Everything here runs without any cloud or model-provider account.
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]" "moto[dynamodb]" azure-cosmos google-cloud-firestore
+      - name: Unit, contract and offline wire-replay tests (all providers, real SDKs)
+        run: pytest -q
+      - name: Every profile binds and provides its features
+        run: for p in $(python -m e2a_managed profiles | awk '{print $1}'); do python -m e2a_managed verify "$p"; done
+
+  project-suites:
+    # The three projects' OWN test suites, with their model binding swapped to each profile.
+    needs: python
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: [anthropic_bedrock, anthropic_claude_platform_aws, openai_azure, google_vertex, meta_llama_aws]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: e2a-managed-providers
+      - uses: actions/checkout@v4
+        with:
+          repository: subhamviky/order-to-cash-agentic-ai
+          path: order-to-cash-agentic-ai
+      - uses: actions/checkout@v4
+        with:
+          repository: subhamviky/aws-reconciliation-engine
+          path: aws-reconciliation-engine
+      - uses: actions/checkout@v4
+        with:
+          repository: subhamviky/financial-settlement-platform
+          path: financial-settlement-platform
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install the package and the projects (their pinned frameworks come with the package)
+        run: |
+          pip install -e "e2a-managed-providers[dev]" "moto[dynamodb,sqs]" mangum fastapi jsonschema \
+            "capability-oriented-dsa @ git+https://github.com/subhamviky/capability-oriented-dsa.git@v0.3.0"
+          for p in order-to-cash-agentic-ai/o2c-agent-service aws-reconciliation-engine/reconciliation-service \
+                   financial-settlement-platform/audit-ai-service; do pip install -e "$p" --no-deps; done
+      - name: Project test suites on ${{ matrix.profile }} (offline replay)
+        working-directory: e2a-managed-providers
+        run: PROJECTS_DIR=.. ./examples/run_project_suites.sh ${{ matrix.profile }}
+      - name: Landscape scenario on ${{ matrix.profile }}
+        working-directory: e2a-managed-providers
+        run: python examples/run_landscape.py ${{ matrix.profile }}
+
+  terraform:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        module:
+          - e2a_managed/clouds/aws/terraform
+          - e2a_managed/clouds/azure/terraform
+          - e2a_managed/clouds/gcp/terraform
+          - e2a_managed/providers/meta_llama/terraform
+    defaults:
+      run:
+        working-directory: ${{ matrix.module }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.8
+      - run: terraform fmt -check -recursive
+      - run: terraform init -backend=false
+      - run: terraform validate
+      - name: terraform test (mock providers, no account)
+        run: terraform test
+
+  terraform-extensions:
+    # Recent resource types (S3 Vectors, AgentCore Gateway, Model Armor): validated, not blocking.
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        module:
+          - e2a_managed/clouds/aws/terraform/extensions/s3_vectors
+          - e2a_managed/clouds/aws/terraform/extensions/agentcore_gateway
+          - e2a_managed/clouds/gcp/terraform/extensions/model_armor
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.8
+      - run: terraform init -backend=false && terraform validate
+        working-directory: ${{ matrix.module }}
+
+  java:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: subhamviky/e2a-framework
+          ref: v1.3.0
+          path: e2a-framework
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - run: mvn -B -q -DskipTests install -f e2a-framework/java/pom.xml -pl e2a-core -am
+      - name: Java LlmService adapters against local wire replay (real provider SDKs)
+        run: mvn -B verify -f java/pom.xml
+
+  managed-agents-definitions:
+    # Claude Managed Agents are IaC too (ant apply). Without an account: syntax only.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          python - <<'PY'
+          import pathlib, yaml
+          for f in pathlib.Path("e2a_managed/providers/anthropic_aws/managed_agents").rglob("*"):
+              if f.suffix in (".yaml", ".yml"):
+                  yaml.safe_load(f.read_text())
+              elif f.name == "agent.md":
+                  front = f.read_text().split("---")[1]
+                  agent = yaml.safe_load(front)
+                  assert agent["model"] and agent["tools"], f
+                  assert all(t.get("type") != "agent_toolset_20260401" or not t["default_config"].get("enabled", True)
+                             for t in agent["tools"]), "built-in sandbox tools must stay off"
+              print("ok", f)
+          PY
