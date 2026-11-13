@@ -1,0 +1,52 @@
+name: anthropic_bedrock
+provider: anthropic
+cloud: aws
+description: >
+  Claude on Amazon Bedrock (AWS-operated) with the Bedrock platform services around it:
+  Titan embeddings, S3 Vectors, Bedrock Rerank (Cohere Rerank 3.5), Bedrock Guardrails,
+  Prompt Management, AgentCore Gateway (MCP) and AgentCore Runtime; DynamoDB for E2A
+  claims and checkpoints; CloudWatch/X-Ray through OpenTelemetry. The most common
+  enterprise way to run Claude on AWS.
+features: [tool_use, structured_output, streaming, prompt_caching, reasoning_effort, refusal_fallback,
+           embeddings, vector_search, rerank, guardrails, prompt_registry, mcp_gateway,
+           managed_agent_runtime, idempotency_store, checkpoint_store, telemetry, infra_as_code,
+           release_pipeline]
+bindings:
+  llm_service: e2a_managed.providers.anthropic_aws.llm_service:BedrockClaudeLLMService
+  embedding_model: e2a_managed.clouds.aws.bedrock:TitanEmbeddingModel
+  vector_index: e2a_managed.clouds.aws.bedrock:S3VectorsIndex
+  reranker: e2a_managed.clouds.aws.bedrock:BedrockReranker
+  guardrail_stage: e2a_managed.clouds.aws.bedrock:BedrockGuardrailStage
+  prompt_registry: e2a_managed.clouds.aws.bedrock:BedrockPromptRegistry
+  mcp_gateway_tool: e2a_managed.clouds.aws.bedrock:AgentCoreGatewayTool
+  delegated_runtime: e2a_managed.clouds.aws.bedrock:AgentCoreRuntime
+  observability_engine: e2a_managed.clouds.aws.substrate:AWSObservability
+  idempotency_store: e2a_managed.clouds.aws.substrate:DynamoDBIdempotencyStore
+  checkpoint_store: e2a_managed.clouds.aws.substrate:DynamoDBCheckpointStore
+  infra_provisioner: e2a_managed.clouds.aws.substrate:AWSInfraProvisioner
+  release_pipeline: e2a_managed.clouds.aws.substrate:AWSReleasePipeline
+config:
+  # Literal values are this profile's decisions; ${VAR:-default} values are deployment settings.
+  model_id: ${LLM_MODEL_ID:-anthropic.claude-opus-5-5}
+  fallback_model_id: ${LLM_FALLBACK_MODEL_ID:-anthropic.claude-opus-4-8}
+  reasoning_effort: ${LLM_REASONING_EFFORT:-medium}
+  aws_region: ${AWS_REGION:-us-east-1}
+  # A hosted model is not a 3-second simulator: E2A's upstream deadline and context budget
+  # are raised for real inference. The request deadline still bounds the whole call.
+  llm_max_latency: ${LLM_MAX_LATENCY:-60}
+  context_budget: ${LLM_CONTEXT_BUDGET:-150000}
+  max_output_tokens: ${LLM_MAX_OUTPUT_TOKENS:-4096}
+  llm_sdk_max_retries: 0              # E2A's ResiliencePolicy is the only retry authority
+  embedding_model_id: ${EMBEDDING_MODEL_ID:-amazon.titan-embed-text-v2:0}
+  embedding_dimensions: ${EMBEDDING_DIMENSIONS:-1024}
+  rerank_model_id: ${RERANK_MODEL_ID:-cohere.rerank-v3-5:0}
+  vector_index_name: ${VECTOR_INDEX_NAME:-e2a-knowledge}
+  s3_vector_bucket: ${S3_VECTOR_BUCKET}
+  bedrock_guardrail_id: ${BEDROCK_GUARDRAIL_ID}
+  bedrock_guardrail_version: ${BEDROCK_GUARDRAIL_VERSION:-DRAFT}
+  bedrock_prompt_arn_prefix: ${BEDROCK_PROMPT_ARN_PREFIX}
+  agentcore_gateway_url: ${AGENTCORE_GATEWAY_URL}
+  delegated_runtime_id: ${DELEGATED_RUNTIME_ID}
+  dynamodb_idempotency_table: ${DYNAMODB_IDEMPOTENCY_TABLE:-e2a-idempotency}
+  dynamodb_checkpoint_table: ${DYNAMODB_CHECKPOINT_TABLE:-e2a-checkpoints}
+  otel_service_name: ${OTEL_SERVICE_NAME:-e2a-service}

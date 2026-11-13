@@ -1,0 +1,47 @@
+# Deploys the openai_azure profile.
+# Inert until the repository variable E2A_DEPLOY_ENABLED is 'true' and an OIDC role exists.
+name: deploy-azure
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        type: choice
+        options: [openai_azure]
+      tenant:
+        default: acme
+      live_smoke:
+        type: boolean
+        default: false
+
+permissions:
+  id-token: write   # GitHub OIDC -> Entra ID federated credential; no long-lived keys
+  contents: read
+
+jobs:
+  deploy:
+    if: vars.E2A_DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.profile }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[openai-azure]"
+      - name: Release gate (static checks, profile verification, tests)
+        run: python -c "from e2a_managed import bindings_from_profile as b; import sys; r=b('${{ inputs.profile }}').release_pipeline.run_pipeline({'faithfulness_threshold':0.8}); print(r['status']); sys.exit(r['status']!='SUCCESS')"
+      - name: Landing-zone variables from the profile
+        run: python -c "from e2a_managed import bindings_from_profile as b; x=b('${{ inputs.profile }}'); type(x.infra_provisioner)(x.config(), out_dir='e2a_managed/clouds/azure/terraform').provision_landing_zone('${{ inputs.tenant }}','POOL','HIGH', config=x.profile.config)"
+      - uses: hashicorp/setup-terraform@v3
+      - working-directory: e2a_managed/clouds/azure/terraform
+        run: terraform init && terraform plan -out plan.tfplan && terraform apply -auto-approve plan.tfplan
+      - name: Live smoke (one real model call per seam)
+        if: inputs.live_smoke
+        env:
+          E2A_PROVIDER_PROFILE: ${{ inputs.profile }}
+        run: python examples/live_smoke.py

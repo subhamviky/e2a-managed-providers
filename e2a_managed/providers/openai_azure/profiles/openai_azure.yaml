@@ -1,0 +1,51 @@
+name: openai_azure
+provider: openai
+cloud: azure
+description: >
+  OpenAI models on Azure AI Foundry (Azure OpenAI v1 API, Responses API, Entra ID auth)
+  with Azure AI Search (native hybrid + semantic ranker), Azure AI Content Safety
+  (Prompt Shields), API Management as the MCP gateway, a Responses-API agent as the
+  delegated runtime, Cosmos DB for E2A claims and checkpoints, and Application Insights
+  through OpenTelemetry. The most common enterprise way to run OpenAI models.
+features: [tool_use, structured_output, streaming, prompt_caching, reasoning_effort, mcp_connector,
+           embeddings, vector_search, hybrid_search, rerank, guardrails, mcp_gateway,
+           managed_agent_runtime, idempotency_store, checkpoint_store, telemetry, infra_as_code,
+           release_pipeline]
+bindings:
+  llm_service: e2a_managed.providers.openai_azure.llm_service:AzureOpenAIResponsesLLMService
+  embedding_model: e2a_managed.providers.openai_azure.llm_service:AzureOpenAIEmbeddingModel
+  delegated_runtime: e2a_managed.providers.openai_azure.delegated_runtime:ResponsesAgentRuntime
+  vector_index: e2a_managed.clouds.azure.services:AzureAISearchIndex
+  reranker: e2a_managed.clouds.azure.services:AzureSemanticRanker
+  guardrail_stage: e2a_managed.clouds.azure.services:AzureContentSafetyStage
+  mcp_gateway_tool: e2a_managed.clouds.azure.services:APIMGatewayTool
+  observability_engine: e2a_managed.clouds.azure.services:AzureObservability
+  idempotency_store: e2a_managed.clouds.azure.services:CosmosIdempotencyStore
+  checkpoint_store: e2a_managed.clouds.azure.services:CosmosCheckpointStore
+  infra_provisioner: e2a_managed.clouds.azure.services:AzureInfraProvisioner
+  release_pipeline: e2a_managed.clouds.azure.services:AzureReleasePipeline
+config:
+  model_id: ${LLM_MODEL_ID:-gpt-5}                      # the Azure *deployment* name
+  fallback_model_id: ${LLM_FALLBACK_MODEL_ID}
+  reasoning_effort: ${LLM_REASONING_EFFORT:-medium}
+  azure_openai_endpoint: ${AZURE_OPENAI_ENDPOINT}
+  azure_openai_api_key: ${AZURE_OPENAI_API_KEY}         # unset -> Entra ID (managed identity)
+  openai_store_responses: false
+  mcp_servers: ${MCP_SERVERS:-[]}
+  llm_max_latency: ${LLM_MAX_LATENCY:-60}
+  context_budget: ${LLM_CONTEXT_BUDGET:-150000}
+  max_output_tokens: ${LLM_MAX_OUTPUT_TOKENS:-4096}
+  llm_sdk_max_retries: 0
+  embedding_model_id: ${EMBEDDING_MODEL_ID:-text-embedding-3-large}
+  embedding_dimensions: ${EMBEDDING_DIMENSIONS:-1024}
+  vector_index_name: ${VECTOR_INDEX_NAME:-e2a-knowledge}
+  azure_search_endpoint: ${AZURE_SEARCH_ENDPOINT}
+  azure_search_api_key: ${AZURE_SEARCH_API_KEY}
+  azure_search_semantic_config: ${AZURE_SEARCH_SEMANTIC_CONFIG:-default}
+  azure_content_safety_endpoint: ${AZURE_CONTENT_SAFETY_ENDPOINT}
+  azure_content_safety_key: ${AZURE_CONTENT_SAFETY_KEY}
+  mcp_server_url: ${APIM_MCP_URL}
+  delegated_runtime_id: ${DELEGATED_RUNTIME_ID}         # deployment the delegated agent runs on
+  cosmos_endpoint: ${COSMOS_ENDPOINT}
+  cosmos_database: ${COSMOS_DATABASE:-e2a}
+  otel_service_name: ${OTEL_SERVICE_NAME:-e2a-service}
