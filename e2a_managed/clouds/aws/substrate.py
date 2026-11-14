@@ -1,6 +1,6 @@
-"""AWS substrate shared by every provider profile on AWS: stores, telemetry, IaC, CI/CD.
+"""AWS substrate shared by every provider profile on AWS: telemetry, IaC, CI/CD. The stores,
+broker and secret store come from e2a-adapters' "aws" profile, which the AWS profiles extend.
 
-    DynamoDBIdempotencyStore / DynamoDBCheckpointStore   e2a-adapters (E2A v1.5), bound from config
     AWSObservability                                     OTel -> ADOT collector -> CloudWatch / X-Ray
     AWSInfraProvisioner                                  E2A landing zone + managed AI resources -> tfvars
     AWSReleasePipeline                                   ECR images, Lambda alias / ECS canary rollout
@@ -12,35 +12,8 @@ from e2a import resolve_config
 from ...iac import TerraformInfraProvisioner
 from ...observability import ManagedObservability
 from ...release import ManagedReleasePipeline
-from ...stores import AdapterCheckpointStore, AdapterIdempotencyStore
 
 TERRAFORM = Path(__file__).parent / "terraform"
-
-
-def _dynamodb_adapter(store, kind: str, table_key: str):
-    """The e2a-adapters DynamoDB store on the table this package's config names. The table has
-    string keys `pk` and `sk` (terraform/main.tf) and TTL on `ttl`."""
-    import e2a_adapters.aws as adapters
-    client = store._injected.get("client")
-    if client is None:
-        import boto3
-        client = boto3.client("dynamodb", region_name=resolve_config("aws_region", store.config))
-    return getattr(adapters, kind)(client=client, table_name=resolve_config(table_key, store.config),
-                                   clock=store._clock)
-
-
-class DynamoDBIdempotencyStore(AdapterIdempotencyStore):
-    """E2A claims on DynamoDB: e2a-adapters' DynamoDBIdempotencyStore, bound from config."""
-
-    def _build(self):
-        return _dynamodb_adapter(self, "DynamoDBIdempotencyStore", "dynamodb_idempotency_table")
-
-
-class DynamoDBCheckpointStore(AdapterCheckpointStore):
-    """Approval checkpoints on DynamoDB: e2a-adapters' DynamoDBCheckpointStore, bound from config."""
-
-    def _build(self):
-        return _dynamodb_adapter(self, "DynamoDBCheckpointStore", "dynamodb_checkpoint_table")
 
 
 class AWSObservability(ManagedObservability):

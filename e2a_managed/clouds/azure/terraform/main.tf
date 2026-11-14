@@ -123,8 +123,10 @@ resource "azurerm_cosmosdb_sql_database" "e2a" {
   account_name        = azurerm_cosmosdb_account.state.name
 }
 
+# one container for every E2A record (claims, checkpoints, rows, leases): e2a-adapters' "azure"
+# profile (COSMOS_CONTAINER); the record kind is part of each item's key
 resource "azurerm_cosmosdb_sql_container" "state" {
-  for_each            = toset(["idempotency", "checkpoints"])
+  for_each            = toset(["e2a"])
   name                = each.value
   resource_group_name = azurerm_resource_group.this.name
   account_name        = azurerm_cosmosdb_account.state.name

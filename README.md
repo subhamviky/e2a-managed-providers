@@ -78,7 +78,6 @@ e2a_managed/                     provider-neutral core (an upstream candidate fo
   guardrails.py                  E2A's ManagedGuardrailStage (v1.6.1), re-exported; providers add _screen
   delegated.py                   E2A's DelegatedRuntime (v1.6.1), re-exported; bound per agent with a scope
   mcp_gateway.py                 ManagedMCPGatewayTool(MCPToolService)
-  stores.py                      claim/checkpoint seams bound from config, on e2a-adapters (E2A v1.5)
   observability.py  iac.py  release.py                          BaseObservability / BaseInfraProvisioner / BasePipeline
   offline.py  swap.py  pytest_plugin.py                         offline wire replay through the real SDKs
   providers/
@@ -110,7 +109,10 @@ Everything below runs with no account (in CI on every push):
 
 ### Supported E2A versions
 
-This package needs **E2A v1.6.1 or later** (it pins the `v1.6.1` tag). Its profiles, bindings
+This package needs **E2A v1.7.0 or later** (it pins the `v1.7.0` tag). **The cloud infrastructure is
+e2a-adapters' (1.7.0):** every provider profile `extends` the cloud profile of its cloud (`aws`, `gcp`,
+`azure`), which binds the stores, the message broker, the secret store and the identity claims; a
+provider profile adds only the AI services and overrides what it must. Its profiles, bindings
 and capabilities are E2A's own (`e2a.bindings`, `e2a.capabilities`), its refusals are E2A's
 `ModelRefusal`, and every adapter is checked with E2A's model contract
 (`e2a.port_contract.check_llm_service`). Since v1.6.1 the vendor-neutral half of every managed

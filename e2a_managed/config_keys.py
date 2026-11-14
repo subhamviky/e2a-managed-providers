@@ -14,12 +14,15 @@ wins over the profile and the environment for that one call.
 Keys are registered when this module is imported (e2a_managed/__init__ imports it).
 
 Keys E2A owns are not registered here: provider_profile (E2A 1.6.0), reasoning_effort,
-guardrail_fields and delegated_max_turns (E2A 1.6.1).
+guardrail_fields and delegated_max_turns (E2A 1.6.1); the cloud infrastructure keys (aws_region,
+gcp_project, the DynamoDB tables, Cosmos DB and Firestore names) are e2a-adapters' (1.7.0).
 """
 import json
 from typing import Any, List
 
 from e2a import ConfigKey, register_config_key
+
+import e2a_adapters  # noqa: F401  (registers the cloud infrastructure keys this package's classes also read)
 
 
 def _bool(v: Any) -> bool:
@@ -76,7 +79,6 @@ MANAGED_KEYS = [
               "ManagedObservability — OTLP collector (ADOT, Azure Monitor agent, Cloud Trace collector)"),
 
     # ---- AWS (Anthropic on Bedrock / Claude Platform on AWS, Meta on AWS)
-    ConfigKey("aws_region", "AWS_REGION", "us-east-1", str, _AWS, "every AWS client"),
     ConfigKey("anthropic_aws_workspace_id", "ANTHROPIC_AWS_WORKSPACE_ID", None, str, _AWS,
               "ClaudePlatformAWSLLMService — workspace of Claude Platform on AWS"),
     ConfigKey("anthropic_betas", "ANTHROPIC_BETAS", [], _list, _AWS,
@@ -90,10 +92,6 @@ MANAGED_KEYS = [
               "BedrockPromptRegistry — prompt ids are resolved under this ARN prefix"),
     ConfigKey("agentcore_gateway_url", "AGENTCORE_GATEWAY_URL", None, str, _AWS,
               "AgentCore Gateway — the managed MCP endpoint in front of the E2A MCP servers"),
-    ConfigKey("dynamodb_idempotency_table", "DYNAMODB_IDEMPOTENCY_TABLE", "e2a-idempotency", str, _AWS,
-              "DynamoDBIdempotencyStore"),
-    ConfigKey("dynamodb_checkpoint_table", "DYNAMODB_CHECKPOINT_TABLE", "e2a-checkpoints", str, _AWS,
-              "DynamoDBCheckpointStore"),
 
     # ---- Azure (OpenAI on Azure AI Foundry)
     ConfigKey("azure_openai_endpoint", "AZURE_OPENAI_ENDPOINT", None, str, _AZURE,
@@ -112,11 +110,8 @@ MANAGED_KEYS = [
               "AzureContentSafetyStage", secret=True),
     ConfigKey("azure_apim_subscription_key", "AZURE_APIM_SUBSCRIPTION_KEY", None, str, _AZURE,
               "API Management as MCP gateway", secret=True),
-    ConfigKey("cosmos_endpoint", "COSMOS_ENDPOINT", None, str, _AZURE, "CosmosIdempotencyStore"),
-    ConfigKey("cosmos_database", "COSMOS_DATABASE", "e2a", str, _AZURE, "CosmosIdempotencyStore"),
 
     # ---- Google Cloud (Gemini on Vertex AI)
-    ConfigKey("gcp_project", "GOOGLE_CLOUD_PROJECT", None, str, _GCP, "every Google client"),
     ConfigKey("gcp_location", "GOOGLE_CLOUD_LOCATION", "us-central1", str, _GCP, "every Google client"),
     ConfigKey("vertex_index_endpoint", "VERTEX_INDEX_ENDPOINT", None, str, _GCP,
               "VertexVectorSearchIndex — projects/../indexEndpoints/.. (query)"),
@@ -129,7 +124,6 @@ MANAGED_KEYS = [
               "ModelArmorStage — projects/../locations/../templates/.."),
     ConfigKey("vertex_agent_engine", "VERTEX_AGENT_ENGINE", None, str, _GCP,
               "VertexAgentEngineRuntime — projects/../reasoningEngines/.."),
-    ConfigKey("firestore_database", "FIRESTORE_DATABASE", "(default)", str, _GCP, "FirestoreIdempotencyStore"),
 
     # ---- Meta (Llama Stack distribution)
     ConfigKey("llama_stack_url", "LLAMA_STACK_URL", "http://localhost:8321", str, _META,

@@ -15,6 +15,10 @@ output "DYNAMODB_CHECKPOINT_TABLE" {
   value = aws_dynamodb_table.state["checkpoints"].name
 }
 
+output "DYNAMODB_STATE_TABLE" {
+  value = aws_dynamodb_table.state["state"].name
+}
+
 output "TIER2_ROLE_ARN" {
   value = aws_iam_role.tier2.arn
 }

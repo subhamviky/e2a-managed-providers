@@ -24,7 +24,7 @@ run "guardrail_blocks_prompt_attacks" {
 run "state_tables_are_conditional_write_ready" {
   command = plan
   assert {
-    condition     = aws_dynamodb_table.state["idempotency"].hash_key == "pk" && aws_dynamodb_table.state["idempotency"].range_key == "sk" && aws_dynamodb_table.state["checkpoints"].range_key == "sk" && aws_dynamodb_table.state["checkpoints"].billing_mode == "PAY_PER_REQUEST"
+    condition     = aws_dynamodb_table.state["idempotency"].hash_key == "pk" && aws_dynamodb_table.state["idempotency"].range_key == "sk" && aws_dynamodb_table.state["checkpoints"].range_key == "sk" && aws_dynamodb_table.state["checkpoints"].billing_mode == "PAY_PER_REQUEST" && aws_dynamodb_table.state["state"].range_key == "sk"
     error_message = "E2A stores need pk-keyed on-demand tables"
   }
 }

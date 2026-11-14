@@ -1,6 +1,9 @@
 name: google_vertex
 provider: google
 cloud: gcp
+# E2A 1.7: the cloud infrastructure (stores, broker, secrets, identity claims) comes from
+# e2a-adapters' "gcp" profile; this profile adds the AI services and overrides what it must
+extends: gcp
 description: >
   Gemini on Vertex AI (google-genai SDK, ADC / Workload Identity) with gemini-embedding,
   Vertex AI Vector Search (hybrid dense + sparse), the Vertex AI Ranking API, Model Armor,
@@ -20,8 +23,6 @@ bindings:
   delegated_runtime: e2a_managed.clouds.gcp.services:VertexAgentEngineRuntime
   mcp_gateway_tool: e2a_managed.clouds.gcp.services:IAPGatewayTool
   observability_engine: e2a_managed.clouds.gcp.services:GCPObservability
-  idempotency_store: e2a_managed.clouds.gcp.services:FirestoreIdempotencyStore
-  checkpoint_store: e2a_managed.clouds.gcp.services:FirestoreCheckpointStore
   infra_provisioner: e2a_managed.clouds.gcp.services:GCPManagedInfraProvisioner
   release_pipeline: e2a_managed.clouds.gcp.services:GCPReleasePipeline
 config:
@@ -29,7 +30,6 @@ config:
   fallback_model_id: ${LLM_FALLBACK_MODEL_ID}
   reasoning_effort: ${LLM_REASONING_EFFORT:-medium}
   temperature: ${LLM_TEMPERATURE:-0.0}
-  gcp_project: ${GOOGLE_CLOUD_PROJECT}
   gcp_location: ${GOOGLE_CLOUD_LOCATION:-us-central1}
   llm_max_latency: ${LLM_MAX_LATENCY:-60}
   context_budget: ${LLM_CONTEXT_BUDGET:-150000}
@@ -44,5 +44,4 @@ config:
   model_armor_template: ${MODEL_ARMOR_TEMPLATE}
   vertex_agent_engine: ${VERTEX_AGENT_ENGINE}
   mcp_server_url: ${MCP_GATEWAY_URL}
-  firestore_database: ${FIRESTORE_DATABASE:-(default)}
   otel_service_name: ${OTEL_SERVICE_NAME:-e2a-service}

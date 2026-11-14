@@ -94,7 +94,7 @@ resource "google_firestore_database" "state" {
 # e2a-adapters' Firestore stores set a "ttl" timestamp on claims: garbage collection only,
 # correctness uses their own expiry fields.
 resource "google_firestore_field" "ttl" {
-  for_each   = toset(["e2a_idempotency", "e2a_checkpoints"])
+  for_each   = toset(["e2a"]) # e2a-adapters' "gcp" profile keeps every E2A record in one collection
   database   = google_firestore_database.state.name
   collection = each.value
   field      = "ttl"

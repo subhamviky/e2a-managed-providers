@@ -5,9 +5,9 @@
     ModelArmorStage             IngressStage      Model Armor sanitizeUserPrompt (PI/jailbreak, RAI, SDP)
     VertexAgentEngineRuntime    DelegatedRuntime  an ADK agent on Vertex AI Agent Engine
     IAPGatewayTool              MCPToolService    MCP server on Cloud Run behind IAP / Apigee (ID token)
-    FirestoreIdempotencyStore /
-    FirestoreCheckpointStore                      e2a-adapters (E2A v1.5), bound from config
     GCPObservability, GCPManagedInfraProvisioner, GCPReleasePipeline
+
+The stores, broker and secret store come from e2a-adapters' "gcp" profile, which google_vertex extends.
 
 REST calls carry an ADC bearer token; the httpx transport is injectable for tests.
 """
@@ -29,7 +29,6 @@ from ...managed_rag import ManagedReranker, ManagedVectorIndex, content_words
 from ...mcp_gateway import ManagedMCPGatewayTool
 from ...observability import ManagedObservability
 from ...release import ManagedReleasePipeline
-from ...stores import AdapterCheckpointStore, AdapterIdempotencyStore
 
 TERRAFORM = Path(__file__).parent / "terraform"
 SPARSE_DIM = 2 ** 20
@@ -225,33 +224,6 @@ class IAPGatewayTool(ManagedMCPGatewayTool):
             token = google.oauth2.id_token.fetch_id_token(google.auth.transport.requests.Request(),
                                                           endpoint.split("/mcp")[0])
         return {"Authorization": f"Bearer {token}"}
-
-
-# ------------------------------------------------------------------------ Firestore stores
-def _firestore_adapter(store, kind: str, collection: str):
-    """The e2a-adapters Firestore store on <firestore_database>, collection `collection`
-    (a TTL policy on its `ttl` field: terraform/main.tf)."""
-    import e2a_adapters.gcp as adapters
-    client = store._injected.get("client")
-    if client is None:
-        from google.cloud import firestore
-        client = firestore.Client(project=resolve_config("gcp_project", store.config),
-                                  database=resolve_config("firestore_database", store.config))
-    return getattr(adapters, kind)(client, collection, clock=store._clock)
-
-
-class FirestoreIdempotencyStore(AdapterIdempotencyStore):
-    """E2A claims on Firestore: e2a-adapters' FirestoreIdempotencyStore, bound from config."""
-
-    def _build(self):
-        return _firestore_adapter(self, "FirestoreIdempotencyStore", "e2a_idempotency")
-
-
-class FirestoreCheckpointStore(AdapterCheckpointStore):
-    """Approval checkpoints on Firestore: e2a-adapters' FirestoreCheckpointStore, bound from config."""
-
-    def _build(self):
-        return _firestore_adapter(self, "FirestoreCheckpointStore", "e2a_checkpoints")
 
 
 # ------------------------------------------------------------------------ substrate
