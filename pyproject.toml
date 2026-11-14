@@ -7,7 +7,7 @@ name = "e2a-managed-providers"
 version = "0.1.0"
 description = "Frontier-provider managed services (Anthropic, OpenAI, Google, Meta) behind the vendor-neutral E2A contracts, selected by configuration."
 requires-python = ">=3.12"
-license = "MIT"
+license = "Apache-2.0"
 dependencies = [
   # The E2A contracts this package implements. Pin the same tag the projects use.
   "e2a-framework @ git+https://github.com/subhamviky/e2a-framework.git@v1.7.0",
