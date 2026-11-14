@@ -31,16 +31,16 @@ class ResponsesAgentRuntime(DelegatedRuntime):
         return self._resolve_param("delegated_runtime_id", config, kwargs) or \
             self._resolve_param("model_id", config, kwargs)
 
-    async def _run_session(self, messages: List[Dict[str, Any]], config, tenant_id, kwargs) -> Dict[str, Any]:
+    async def _run_session(self, messages: List[Dict[str, Any]], config, tenant_id, session, kwargs) -> Dict[str, Any]:
         cfg = {**self._config, **(config or {})}
         client = self._client_for(cfg, kwargs)
         instructions, items = messages_to_openai_responses(messages)
         tools = tools_to_openai_responses(self.tool_declarations()) + \
             mcp_tools(self._resolve_param("mcp_servers", cfg, kwargs))
-        max_turns = int(self._resolve_param("delegated_max_turns", cfg, kwargs))
         effort = self._resolve_param("reasoning_effort", cfg, kwargs)
+        effort = "high" if effort == "max" else effort          # as OpenAIResponsesLLMService._effort
         used_in = used_out = 0
-        for _turn in range(max_turns + 1):
+        while True:                                     # run_tool raises DelegatedTurnLimit past the budget
             req: Dict[str, Any] = {"model": self._model(cfg, kwargs), "input": items, "store": False,
                                    "metadata": {"tenant_id": str(tenant_id)}}
             if instructions:
@@ -60,5 +60,4 @@ class ResponsesAgentRuntime(DelegatedRuntime):
                 items.append({"type": "function_call", "call_id": call["id"], "name": call["name"],
                               "arguments": json.dumps(call["arguments"])})
                 items.append({"type": "function_call_output", "call_id": call["id"],
-                              "output": await self._run_tool(call["name"], call["arguments"], tenant_id, cfg)})
-        raise RuntimeError(f"delegated run exceeded {max_turns} tool round trips")
+                              "output": await self.run_tool(call["name"], call["arguments"], tenant_id, cfg, session)})

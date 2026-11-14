@@ -33,7 +33,7 @@ flowchart LR
 |---|---|---|---|---|
 | `BaseLLMAgentService` | `BedrockClaudeLLMService`, `ClaudePlatformAWSLLMService` (anthropic SDK) | `AzureOpenAIResponsesLLMService` (openai SDK, v1 endpoint) | `VertexGeminiLLMService` (google-genai) | `LlamaStackLLMService` (llama-stack-client) |
 | `BaseEmbeddingModel` | Titan Text Embeddings V2 | text-embedding-3-large | gemini-embedding-001 | Llama Stack embeddings |
-| `BaseVectorIndex` | S3 Vectors (+ keyword fusion) | Azure AI Search (native hybrid) | Vertex Vector Search (dense + sparse) | Llama Stack vector_io (hybrid) |
+| `BaseVectorIndex` | S3 Vectors (vector-only; the reranker adds keyword relevance) | Azure AI Search (native hybrid) | Vertex Vector Search (dense + sparse) | Llama Stack vector_io (hybrid) |
 | reranker (`_rerank`) | Bedrock Rerank (Cohere 3.5) | semantic ranker | Vertex AI Ranking API | – |
 | fully managed RAG (optional) | Bedrock Knowledge Bases | – | – | – |
 | `IngressStage` (firewall) | Bedrock Guardrails | Content Safety Prompt Shields | Model Armor | Llama Guard shield |
@@ -59,8 +59,8 @@ and Meta profiles on AWS bind the same classes.
 | Quota (RPM/TPM) | E2A token bucket | provider quotas are the outer limit; `max_rpm`/`max_tpm` should be set below them |
 | Prompt cache | E2A decides *what* (static prefix ≥ threshold) | provider decides *how*: Claude `cache_control`, OpenAI `prompt_cache_key`, Gemini `cached_content` |
 | Reasoning depth | `reasoning_effort` | Claude `output_config.effort`, OpenAI `reasoning.effort`, Gemini `thinking_level/budget` |
-| Sampling | not sent to Claude/OpenAI | current reasoning models reject it; still sent to Gemini and Llama |
-| Refusal | `ModelRefusal` (typed) | one retry on `fallback_model_id`; server-side `fallbacks` on Claude Platform on AWS |
+| Sampling | not sent to Claude/OpenAI | current reasoning models reject it; still sent to Gemini and Llama (their `features` declare `sampling: supported`) |
+| Refusal | `ModelRefusal` (typed); E2A's `model_routes` answer it with another model | `fallback_model_id` becomes a refusal route; Claude Platform on AWS falls back server-side (`refusal_fallback_server`), so E2A takes no route |
 | Input screening | E2A pattern firewall **and** the managed guardrail | the managed stage fails closed |
 | Output DLP | E2A egress DLP | always on, whatever the provider does |
 | Material effects | E2A `_act` through `io_modify` | never handed to a managed runtime (see below) |

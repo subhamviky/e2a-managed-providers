@@ -60,7 +60,7 @@ for that call.
 
 ```python
 agent.run(state, config, reasoning_effort="high")      # Claude effort / OpenAI reasoning / Gemini thinking
-llm.process_inference(messages, tenant_id="acme", fallback_model_id="anthropic.claude-opus-4-8")
+llm.process_inference(messages, tenant_id="acme", model_id="anthropic.claude-opus-4-8")
 rag.retrieve(query, config, tenant_id="acme", rerank_top_n=5)
 ```
 
@@ -73,10 +73,10 @@ over the environment ([java/](java/)).
 e2a_managed/                     provider-neutral core (an upstream candidate for E2A)
   config_keys.py  profile.py  bindings.py  capabilities.py      configuration → bound seams
   codec.py                       canonical conversation ↔ Anthropic / OpenAI Responses / OpenAI Chat / Gemini wire
-  managed_llm.py                 ManagedLLMService(BaseLLMAgentService): retries, refusals, per-call params
-  managed_rag.py                 embedding / index / reranker bases, ManagedRAGPipeline(BaseRAGPipeline)
-  guardrails.py                  ManagedGuardrailStage(IngressStage): fail-closed, typed FirewallRefusal
-  delegated.py                   DelegatedRuntime + DelegatedAgent(BaseAgent): managed loops, read-only tools
+  managed_llm.py                 ManagedLLMService(BaseLLMAgentService): provider hooks, features, refusals
+  managed_rag.py                 embedding / index bases, ManagedReranker(e2a.BaseReranker), ManagedRAGPipeline
+  guardrails.py                  E2A's ManagedGuardrailStage (v1.6.1), re-exported; providers add _screen
+  delegated.py                   E2A's DelegatedRuntime (v1.6.1), re-exported; bound per agent with a scope
   mcp_gateway.py                 ManagedMCPGatewayTool(MCPToolService)
   stores.py                      claim/checkpoint seams bound from config, on e2a-adapters (E2A v1.5)
   observability.py  iac.py  release.py                          BaseObservability / BaseInfraProvisioner / BasePipeline
@@ -110,10 +110,21 @@ Everything below runs with no account (in CI on every push):
 
 ### Supported E2A versions
 
-This package needs **E2A v1.6.0 or later** (`e2a-framework>=1.6,<2`): its profiles, bindings
+This package needs **E2A v1.6.1 or later** (it pins the `v1.6.1` tag). Its profiles, bindings
 and capabilities are E2A's own (`e2a.bindings`, `e2a.capabilities`), its refusals are E2A's
 `ModelRefusal`, and every adapter is checked with E2A's model contract
-(`e2a.port_contract.check_llm_service`). It is registered as an E2A provider package (entry
+(`e2a.port_contract.check_llm_service`). Since v1.6.1 the vendor-neutral half of every managed
+service is E2A's too, and this package keeps only the vendor half:
+
+| E2A (neutral) | Here (vendor) |
+|---|---|
+| `model_routes`; `refusal_fallback_server` skips E2A's route | `fallback_model_id` becomes a refusal route; Claude Platform on AWS falls back server-side |
+| the `features` map: E2A drops or refuses what a model cannot take, and checks every structured result | each adapter's `features` and its `reasoning_effort` mapping |
+| `ManagedGuardrailStage` and its egress variant: fail closed, `FirewallRefusal` | Bedrock Guardrails, Prompt Shields, Model Armor, Llama Guard (`_screen`) |
+| `DelegatedRuntime`: read tools only, tenant-scoped tool calls, `delegated_max_turns` | Managed Agents, Responses API, AgentCore, Agent Engine sessions |
+| `BaseReranker` port, `dimensions` check | Bedrock Rerank, Vertex Ranking, Azure semantic ranker |
+| `_auth_headers` hook | gateway identity (AgentCore, APIM, IAP) |
+| `scopes` | profiles that bind a runtime to one agent: `scopes: {"agent:<name>": {"llm_service": "@delegated_runtime"}}` | It is registered as an E2A provider package (entry
 point `e2a.providers`), which is what lets profiles bind its classes.
 
 The project suites run each project on that E2A release (the runner installs this package

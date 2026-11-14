@@ -6,21 +6,22 @@ _evaluate_answer). Managed services map onto them as:
 
     BaseEmbeddingModel  <- Titan / text-embedding-3 / gemini-embedding / Llama Stack embeddings
     BaseVectorIndex     <- S3 Vectors / Azure AI Search / Vertex Vector Search / Llama Stack vector_io
-    _rerank             <- ManagedReranker: Bedrock Rerank (Cohere / Amazon), Azure semantic
-                           ranker, Vertex AI Ranking API
+    BaseReranker        <- ManagedReranker: Bedrock Rerank (Cohere / Amazon), Azure semantic
+                           ranker, Vertex AI Ranking API (E2A's port since v1.6.1)
     _evaluate_answer    <- lexical groundedness by default; providers may plug a managed check
 
-E2A has no reranker port, so `ManagedReranker` is defined here (an upstream candidate).
-`retrieve()` does not hand the query to _rerank(); _search_index() therefore tags each
-hit with it, so a cross-encoder reranker can score (query, passage) pairs.
+Since E2A v1.5.1 retrieve() hands the query to _rerank(), and since v1.6.1 the reranker is
+E2A's port (BaseRAGPipeline.reranker), so a cross-encoder scores (query, passage) pairs with
+no tagging of hits. Embedding models declare `dimensions` (embedding_dimensions), which E2A
+checks against an index that declares its own.
 """
 import abc
 import math
 import re
 from typing import Any, Dict, FrozenSet, List, Optional
 
-from e2a import BaseEmbeddingModel, BaseIndexingPipeline, BaseRAGPipeline, BaseVectorIndex, RAGPipeline, \
-    resolve_config
+from e2a import BaseEmbeddingModel, BaseIndexingPipeline, BaseRAGPipeline, BaseReranker, BaseVectorIndex, \
+    RAGPipeline, resolve_config
 
 from . import config_keys  # noqa: F401
 from .capabilities import Capability
@@ -48,6 +49,9 @@ class ManagedEmbeddingModel(BaseEmbeddingModel):
     def __init__(self, config: Optional[Dict[str, Any]] = None, client: Any = None) -> None:
         self.config = dict(config or {})
         self.model_id = str(resolve_config("embedding_model_id", self.config) or self.default_model_id)
+        dims = resolve_config("embedding_dimensions", self.config)
+        if dims:
+            self.dimensions = int(dims)
         self._client = client
 
     default_model_id = "unspecified"
@@ -82,7 +86,7 @@ class ManagedVectorIndex(BaseVectorIndex):
         """Provider SDK client."""
 
 
-class ManagedReranker(abc.ABC):
+class ManagedReranker(BaseReranker):
     capabilities: FrozenSet[str] = frozenset({Capability.RERANK})
 
     def __init__(self, config: Optional[Dict[str, Any]] = None, client: Any = None) -> None:
@@ -101,8 +105,8 @@ class ManagedReranker(abc.ABC):
         """Provider SDK client."""
 
     @abc.abstractmethod
-    def rerank(self, query: str, hits: List[dict], top_n: int) -> List[dict]:
-        """Return the top_n hits, best first, each with a `rerank_score`."""
+    def rerank(self, query: str, hits: List[dict], top_n: int, config: Dict[str, Any] = None) -> List[dict]:
+        """E2A's BaseReranker: the top_n hits, best first, each with a `rerank_score`."""
 
 
 class ManagedRAGPipeline(BaseRAGPipeline):
@@ -111,26 +115,20 @@ class ManagedRAGPipeline(BaseRAGPipeline):
     namespace_prefix = "rag"
 
     def __init__(self, config: Optional[Dict[str, Any]] = None, embedding_model: BaseEmbeddingModel = None,
-                 vector_index: BaseVectorIndex = None, reranker: Optional[ManagedReranker] = None,
+                 vector_index: BaseVectorIndex = None, reranker: Optional[BaseReranker] = None,
                  namespace_prefix: Optional[str] = None) -> None:
         self.config = dict(config or {})
         self.embedding_model, self.vector_index, self.reranker = embedding_model, vector_index, reranker
         if namespace_prefix:
             self.namespace_prefix = namespace_prefix
 
-    def _search_index(self, query_text, query_vector, config=None, tenant_id=None, **kwargs):
-        hits = super()._search_index(query_text, query_vector, config, tenant_id=tenant_id, **kwargs)
-        return [dict(h, _query=query_text) for h in hits]
-
     def _rerank(self, results, config=None, **kwargs):
-        if not results:
-            return []
-        top_n = int(kwargs.get("rerank_top_n", 3))
-        query = results[0].get("_query", "")
-        clean = [{k: v for k, v in r.items() if k != "_query"} for r in results]
-        if self.reranker is not None:
-            return self.reranker.rerank(query, clean, top_n)
-        return sorted(clean, key=lambda r: -float(r.get("score", 0.0)))[:top_n]
+        """E2A's default (the bound reranker port, with the query) cut to 3 when rerank_top_n
+        is not set; without a reranker, the index's own scores order the hits."""
+        top_n = kwargs.pop("rerank_top_n", None) or resolve_config("rerank_top_n", config, kwargs) or 3
+        if self.reranker is None:
+            results = sorted(results or [], key=lambda r: -float(r.get("score", 0.0)))
+        return super()._rerank(results, config, rerank_top_n=int(top_n), **kwargs)
 
     def _evaluate_answer(self, answer, config=None, **kwargs) -> float:
         """Provider-neutral lexical groundedness; an adapter may replace it with a managed

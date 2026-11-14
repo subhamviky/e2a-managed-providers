@@ -50,12 +50,19 @@ class ManagedMCPGatewayTool(MCPToolService):
         return body
 
     @abc.abstractmethod
-    def _auth_headers(self, endpoint: str, config: Dict[str, Any], kwargs: Dict[str, Any]) -> Dict[str, str]:
-        """Gateway credentials (OAuth bearer, SigV4, subscription key, ID token)."""
+    def _auth_headers(self, endpoint: str, config: Optional[Dict[str, Any]] = None, **kwargs: Any) -> Dict[str, str]:
+        """E2A's hook (v1.6.1): the gateway credentials (OAuth bearer, SigV4, subscription key,
+        ID token). `config` is the call's config; this tool's own config is merged in by
+        _cfg(). E2A calls it once per call and hands the result to _send_request."""
+
+    def _cfg(self, config: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+        return {**self.config, **(config or {})}
 
     async def _send_request(self, endpoint, body, token=None, timeout=None, config=None, **kwargs):
-        headers = {"Content-Type": "application/json", "Accept": "application/json, text/event-stream",
-                   **self._auth_headers(endpoint, {**self.config, **(config or {})}, kwargs)}
+        auth = kwargs.pop("auth_headers", None)
+        if auth is None:
+            auth = self._auth_headers(endpoint, config, **kwargs)
+        headers = {"Content-Type": "application/json", "Accept": "application/json, text/event-stream", **auth}
         if kwargs.get("tenant_id"):
             headers["X-Tenant-Id"] = kwargs["tenant_id"]
         if kwargs.get("idempotency_key"):
@@ -76,7 +83,7 @@ class BearerGatewayTool(ManagedMCPGatewayTool):
     """OAuth/JWT bearer (AgentCore Gateway inbound auth, Apigee, Llama Stack ingress).
     The token comes from kwargs['gateway_token'] (per call) or config/env `auth_token`."""
 
-    def _auth_headers(self, endpoint, config, kwargs):
+    def _auth_headers(self, endpoint, config=None, **kwargs):
         from e2a import resolve_config
-        token = kwargs.get("gateway_token") or resolve_config("auth_token", config, kwargs)
+        token = kwargs.get("gateway_token") or resolve_config("auth_token", self._cfg(config), kwargs)
         return {"Authorization": f"Bearer {token}"} if token else {}

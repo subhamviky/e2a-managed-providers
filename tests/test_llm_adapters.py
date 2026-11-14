@@ -87,7 +87,7 @@ async def test_mcp_connector_only_where_the_platform_has_it():
 
 
 @pytest.mark.parametrize("profile", ["anthropic_bedrock", "openai_azure", "google_vertex"])
-async def test_refusal_is_typed_and_retried_once_on_the_fallback_model(profile):
+async def test_refusal_is_typed_and_routed_by_e2a_to_the_fallback_model(profile):
     def refuse(messages):
         return {"text": "I can't help with that.", "stop_reason": "refusal"}
     svc, rt = offline_llm_service(profile, refuse, fallback_model_id=None)
@@ -102,7 +102,9 @@ async def test_refusal_is_typed_and_retried_once_on_the_fallback_model(profile):
         return {"text": "no", "stop_reason": "refusal"} if len(calls) == 1 else "answered by fallback"
     svc2, rt2 = offline_llm_service(profile, once, fallback_model_id="fallback-model")
     out2 = await svc2.process_inference([SYSTEM, USER], tenant_id="acme")
-    assert out2["text"] == "answered by fallback"
+    assert out2["text"] == "answered by fallback" and len(calls) == 2
+    # E2A v1.6.1: fallback_model_id became a model route; E2A records where the answer came from
+    assert out2["fallback_from"]["reason"] == "refusal"
     assert "fallback-model" in json.dumps(rt2.requests[-1]["body"]) or "fallback-model" in rt2.requests[-1]["url"]
 
 
@@ -113,3 +115,28 @@ async def test_e2a_owns_dlp_and_retries(profile):
     assert "123-45-6789" not in out["text"] and out["dlp_redactions"] == 1
     # E2A (v1.5.1+) retries model calls by error class, so the SDKs do not: one retry authority.
     assert svc._sdk_options({}, {})["max_retries"] == 0
+
+
+@pytest.mark.parametrize("profile", PROFILES)
+async def test_each_adapter_declares_its_features_and_e2a_drops_what_it_cannot_take(profile):
+    svc, rt = offline_llm_service(profile, lambda m: '{"ok": true}')
+    features = svc._features_for({})
+    assert features.get("structured_output") == "native"
+    log = []
+    out = await svc.process_inference([SYSTEM, USER], tenant_id="acme", reasoning_effort="high", message_log=log,
+                                      response_schema={"type": "object", "required": ["ok"]})
+    assert out["status"] == "SUCCESS" and out["structured_output_valid"] is True
+    dropped = [e.get("param") for e in log if e.get("event") == "param_dropped"]
+    assert ("reasoning_effort" in dropped) == (features.get("reasoning") == "none")
+
+
+async def test_a_provider_that_falls_back_server_side_gets_no_e2a_route():
+    calls = []
+
+    def refuse(messages):
+        calls.append(1)
+        return {"text": "no", "stop_reason": "refusal"}
+    svc, rt = offline_llm_service("anthropic_claude_platform_aws", refuse, fallback_model_id="fallback-model")
+    out = await svc.process_inference([SYSTEM, USER], tenant_id="acme")
+    assert out["status"] == "REFUSED" and len(calls) == 1          # the server already tried its fallbacks
+    assert rt.requests[0]["body"].get("fallbacks") == "default"

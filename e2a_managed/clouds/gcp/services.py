@@ -143,7 +143,7 @@ class VertexRankingReranker(_GoogleRest, ManagedReranker):
     def _build_client(self, config):
         return None
 
-    def rerank(self, query, hits, top_n):
+    def rerank(self, query, hits, top_n, config=None):
         if not hits:
             return []
         name = (f"projects/{self.project}/locations/global/rankingConfigs/"
@@ -161,7 +161,7 @@ class ModelArmorStage(_GoogleRest, ManagedGuardrailStage):
     filter result refuses; SDP de-identification returns the masked text."""
     name = "model_armor"
 
-    def __init__(self, config=None, client=None, transport=None, token=None, fail_open=False):
+    def __init__(self, config=None, client=None, transport=None, token=None, fail_open=None):
         _GoogleRest.__init__(self, config, transport, token)
         ManagedGuardrailStage.__init__(self, config, client, fail_open)
 
@@ -200,7 +200,7 @@ class VertexAgentEngineRuntime(_GoogleRest, DelegatedRuntime):
     def _build_client(self, config, kwargs):
         return None
 
-    async def _run_session(self, messages, config, tenant_id, kwargs):
+    async def _run_session(self, messages, config, tenant_id, session, kwargs):
         import asyncio
         engine = self._resolve_param("vertex_agent_engine", {**self._config, **(config or {})}, kwargs)
         location = re.search(r"/locations/([^/]+)/", engine).group(1)
@@ -217,7 +217,7 @@ class IAPGatewayTool(ManagedMCPGatewayTool):
     """An MCP server on Cloud Run behind IAP (or Apigee): a Google-signed ID token for the
     service's audience; kwargs['gateway_token'] overrides per call."""
 
-    def _auth_headers(self, endpoint, config, kwargs):
+    def _auth_headers(self, endpoint, config=None, **kwargs):
         token = kwargs.get("gateway_token")
         if not token:
             import google.auth.transport.requests

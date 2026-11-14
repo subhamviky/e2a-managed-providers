@@ -19,7 +19,7 @@ Claude-specific mapping decisions
   * E2A's cache handle (a static prefix >= min_cache_threshold) becomes a cache_control
     breakpoint on the system prompt: E2A decides *what* is cacheable, Claude caches it.
   * response_schema -> output_config.format json_schema (structured outputs).
-  * refusals: stop_reason "refusal" -> ModelRefusal, or one retry on fallback_model_id
+  * refusals: stop_reason "refusal" -> ModelRefusal; E2A routes it (fallback_model_id -> model_routes)
     (Bedrock); Claude Platform on AWS uses the server-side `fallbacks` parameter instead.
 """
 from typing import Any, AsyncIterator, Dict, FrozenSet, List, Optional
@@ -38,6 +38,9 @@ class ClaudeMessagesLLMService(ManagedLLMService):
                                               C.REASONING_EFFORT, C.REFUSAL_FALLBACK})
     server_side_fallbacks = False
     mcp_connector = False
+    # E2A v1.6.1 features. Sampling is not declared: the transport never sends temperature
+    # (current Claude models reject it), so there is nothing for E2A to drop.
+    features = {"structured_output": "native", "reasoning": "effort"}
 
     def _betas(self, config: Dict[str, Any], kwargs: Dict[str, Any], mcp: bool) -> List[str]:
         betas = list(self._param("anthropic_betas", config, kwargs) or [])
@@ -46,6 +49,9 @@ class ClaudeMessagesLLMService(ManagedLLMService):
         if self.server_side_fallbacks and FALLBACK_BETA not in betas:
             betas.append(FALLBACK_BETA)
         return betas
+
+    def _effort(self, effort):
+        return "low" if effort == "minimal" else effort      # Claude has no "minimal" level
 
     def _build_request(self, messages, model_id, temperature, max_tokens, tools, stop_sequences,
                        cache_handle, config, kwargs) -> Dict[str, Any]:
@@ -58,7 +64,7 @@ class ClaudeMessagesLLMService(ManagedLLMService):
         if stop_sequences:
             req["stop_sequences"] = stop_sequences
         output_config: Dict[str, Any] = {}
-        effort = self._param("reasoning_effort", config, kwargs)
+        effort = self._effort(self._param("reasoning_effort", config, kwargs))
         if effort:
             output_config["effort"] = effort
         schema = kwargs.get("response_schema")
@@ -113,7 +119,8 @@ class ClaudePlatformAWSLLMService(ClaudeMessagesLLMService):
     platform = "claude_platform_aws"
     server_side_fallbacks = True
     mcp_connector = True
-    capabilities = ClaudeMessagesLLMService.capabilities | {C.MCP_CONNECTOR, C.SERVER_WEB_SEARCH, C.BATCH}
+    capabilities = ClaudeMessagesLLMService.capabilities | {C.MCP_CONNECTOR, C.SERVER_WEB_SEARCH, C.BATCH,
+                                                            C.REFUSAL_FALLBACK_SERVER}
 
     def _build_client(self, config, kwargs):
         from anthropic import AsyncAnthropicAWS

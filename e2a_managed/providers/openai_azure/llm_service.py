@@ -65,6 +65,12 @@ class OpenAIResponsesLLMService(ManagedLLMService):
     provider = "openai"
     capabilities: FrozenSet[str] = frozenset({C.TOOL_USE, C.STRUCTURED_OUTPUT, C.STREAMING, C.PROMPT_CACHING,
                                               C.REASONING_EFFORT, C.REFUSAL_FALLBACK, C.MCP_CONNECTOR})
+    # E2A v1.6.1 features. Sampling is not declared: the transport never sends temperature
+    # (reasoning models reject it), so there is nothing for E2A to drop.
+    features = {"structured_output": "native", "reasoning": "effort"}
+
+    def _effort(self, effort):
+        return "high" if effort == "max" else effort         # E2A's "max" is the top documented level
 
     def _build_request(self, messages, model_id, temperature, max_tokens, tools, stop_sequences,
                        cache_handle, config, kwargs) -> Dict[str, Any]:
@@ -76,7 +82,7 @@ class OpenAIResponsesLLMService(ManagedLLMService):
         wire_tools = tools_to_openai_responses(tools) + mcp_tools(self._param("mcp_servers", config, kwargs))
         if wire_tools:
             req["tools"] = wire_tools
-        effort = self._param("reasoning_effort", config, kwargs)
+        effort = self._effort(self._param("reasoning_effort", config, kwargs))
         if effort:
             req["reasoning"] = {"effort": effort}
         if kwargs.get("response_schema"):
