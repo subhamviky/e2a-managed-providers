@@ -15,7 +15,7 @@ import uuid
 from collections import Counter
 from pathlib import Path
 
-from e2a_managed import available_profiles
+from e2a_managed import provider_profiles
 from e2a_managed.swap import managed_replay
 
 
@@ -78,7 +78,7 @@ def audit(profile: str) -> list:
 
 
 def main(argv) -> int:
-    profiles = argv or available_profiles()
+    profiles = argv or provider_profiles()
     failures = 0
     for profile in profiles:
         print(f"\n=== {profile} ===")

@@ -10,10 +10,14 @@ release, offline. Providers: e2a_managed.providers.<provider>. Cloud substrate s
 providers on the same cloud: e2a_managed.clouds.<cloud>.
 """
 from . import config_keys  # noqa: F401  (registers the managed configuration keys first)
+from e2a.bindings import register_provider_package
+
 from .bindings import SEAMS, Bindings, bindings_from_profile
 from .capabilities import Capability, CapabilityError
-from .profile import ProviderProfile, available_profiles
+from .profile import ProviderProfile, available_profiles, provider_profiles
+
+register_provider_package(__name__)   # bindable from profiles; its profiles are found by name
 
 __all__ = ["SEAMS", "Bindings", "bindings_from_profile", "Capability", "CapabilityError", "ProviderProfile",
-           "available_profiles"]
+           "available_profiles", "provider_profiles"]
 __version__ = "0.1.0"

@@ -5,9 +5,9 @@
 #   PROJECTS_DIR=../ ./examples/run_project_suites.sh [profile ...]
 #
 # ISOLATED=1 builds one virtualenv per project (in $VENVS_DIR) from the project's own
-# pyproject, because the projects pin different E2A releases (e.g. v1.4.0 and v1.5.0)
-# that cannot share one environment. This package is added to each venv without its
-# dependencies, so it runs on the E2A version the project pins.
+# pyproject (its own dependencies and pins), then adds this package with its dependencies:
+# the project then runs on the E2A release this package needs (>= v1.6.0, for e2a.bindings),
+# which also proves the project's own suite passes on it.
 # E2A_SWAP_LIVE=true sends the calls to the providers for real (credentials required).
 #
 # With FIRESTORE_EMULATOR_HOST / COSMOS_EMULATOR_ENDPOINT set, O2C and audit-ai-service run a
@@ -49,7 +49,7 @@ python_for() {                      # $1 = project dir; prints the python to use
     "$venv/bin/pip" install -q --upgrade pip >&2
     "$venv/bin/pip" install -q -e "$1" >&2                       # the project with its own pins
     "$venv/bin/pip" install -q "${RUNTIME_DEPS[@]}" >&2
-    "$venv/bin/pip" install -q -e "$HERE" --no-deps >&2          # this package, on the project's E2A
+    "$venv/bin/pip" install -q -e "$HERE" >&2                    # this package with its E2A (>= v1.6.0)
   fi
   echo "$venv/bin/python"
 }

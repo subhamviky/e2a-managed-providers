@@ -8,16 +8,16 @@ accounting. A provider adapter implements only _dispatch_upstream_call/_stream.
 This class narrows that further to four provider hooks, and settles three questions
 once for all providers:
 
-1. Who retries. Until E2A retries model calls itself (E2A v1.5.1, proposal P7), the
-   provider SDKs do: `llm_sdk_max_retries` defaults to 2, and the SDKs honour Retry-After.
-   E2A v1.5.0 calls the model with max_retries=0, so setting this to 0 today means NO layer
-   retries a 429 or a 503. Once E2A v1.5.1 is pinned, set it to 0: one retry authority,
-   which also keeps throttling from being hidden from E2A's classification.
+1. Who retries. E2A (v1.5.1+) retries a model call by error class: throttled, overloaded and
+   transient failures, honouring Retry-After within the deadline, and throttling never opens
+   the circuit. So the SDKs' own retries are 0 (`llm_sdk_max_retries`): one retry authority,
+   no multiplied load in an outage, and every failure visible to E2A's classification.
 2. Per-call vendor parameters. Every vendor key is resolved with
    self._resolve_param(key, config, kwargs): a keyword passed to agent.run(...) or
    process_inference(...) wins over the profile and the environment for that call.
-3. Refusals. A provider decline is a typed ModelRefusal, retried once on
-   `fallback_model_id` when one is configured; never treated as an answer.
+3. Refusals. A provider decline is E2A's typed ModelRefusal (status REFUSED, routed to the
+   agent's _fallback), retried once on `fallback_model_id` when one is configured; never
+   treated as an answer.
 
 Subclasses implement:
     _build_client(config, kwargs)                     -> SDK client (never at import time)
@@ -30,16 +30,14 @@ import abc
 from typing import Any, AsyncIterator, Dict, FrozenSet, List, Optional
 
 from e2a import BaseLLMAgentService
+from e2a import ModelRefusal as _E2AModelRefusal
 
 from . import config_keys  # noqa: F401
 
 
-class ModelRefusal(RuntimeError):
-    """The managed model declined the request (provider safety policy)."""
-
-    def __init__(self, provider: str, model: str, detail: str = "") -> None:
-        super().__init__(f"{provider} model {model} declined the request{': ' + detail if detail else ''}")
-        self.provider, self.model, self.detail = provider, model, detail
+# E2A's own since v1.6.0: raised here, it becomes status REFUSED (never retried, not a failure),
+# and BaseAgent routes it to the agent's _fallback.
+ModelRefusal = _E2AModelRefusal
 
 
 class ManagedLLMService(BaseLLMAgentService):

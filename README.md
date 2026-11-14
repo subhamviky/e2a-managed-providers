@@ -102,7 +102,7 @@ Everything below runs with no account (in CI on every push):
 
 | Check | Result |
 |---|---|
-| This package's tests: profiles, every LLM adapter through its **real SDK** (unary, streaming, tool round trip, structured output, per-call override, refusal and fallback, E2A DLP still applied), AWS services against AWS's own API models (botocore Stubber), Azure/GCP/Llama Stack REST shapes, the claim and checkpoint stores (e2a-adapters) against **E2A's own contract kit** (`e2a.port_contract`) on moto and, races included, on DynamoDB Local and the Firestore and Cosmos DB emulators, delegated runtimes, IaC manifests, release gate, E2A conformance | 88 passed (85 without the emulators) |
+| This package's tests: profiles, every LLM adapter through its **real SDK** (unary, streaming, tool round trip, structured output, per-call override, refusal and fallback, E2A DLP still applied), AWS services against AWS's own API models (botocore Stubber), Azure/GCP/Llama Stack REST shapes, **E2A's model contract (`check_llm_service`, 10 scenarios) on every profile**, the claim and checkpoint stores (e2a-adapters) against **E2A's own contract kit** (`e2a.port_contract`) on moto and, races included, on DynamoDB Local and the Firestore and Cosmos DB emulators, delegated runtimes, IaC manifests, release gate, E2A conformance | 93 passed (90 without the emulators) |
 | The three projects' **own** test suites, at their latest `main`, each in its own venv on the E2A release it pins (v1.4.0 or v1.5.0), with the model binding swapped to each of the 5 profiles; O2C and audit-ai a second time with their state on the Firestore and Cosmos DB emulators | O2C 43 + 43, reconciliation 44, audit-ai 23 + 26, on every profile; no project file changed. CI writes the full table to each run's summary (`EVIDENCE_FILE`). |
 | Landscape scenario per profile (`examples/run_landscape.py`): policy answer, payment exceptions, order placed, order paused for four-eyes approval, audit finding flagged and explained | all 5 profiles |
 | Java adapters (anthropic-java, openai-java, google-genai) against local wire replay | 5 passed |
@@ -110,17 +110,23 @@ Everything below runs with no account (in CI on every push):
 
 ### Supported E2A versions
 
-| Part of this package | E2A |
-|---|---|
-| The model path: LLM adapters, codecs, the swap plugin, delegated runtimes | v1.4.0 and v1.5.0. Proven every run: reconciliation's venv is on v1.4.0 |
-| Everything, including the stores (they are e2a-adapters' Firestore and Cosmos DB adapters, new in v1.5.0) | v1.5.0 |
+This package needs **E2A v1.6.0 or later** (`e2a-framework>=1.6,<2`): its profiles, bindings
+and capabilities are E2A's own (`e2a.bindings`, `e2a.capabilities`), its refusals are E2A's
+`ModelRefusal`, and every adapter is checked with E2A's model contract
+(`e2a.port_contract.check_llm_service`). It is registered as an E2A provider package (entry
+point `e2a.providers`), which is what lets profiles bind its classes.
 
-### Retries until E2A retries model calls
+The project suites run each project on that E2A release (the runner installs this package
+with its dependencies into each project's venv), which also proves the projects' own suites
+pass on it.
 
-E2A v1.5.0 calls the model with `max_retries=0` (it never retries a model call). So the
-provider SDKs retry here: `llm_sdk_max_retries` defaults to 2, and the SDKs honour
-`Retry-After`. Once E2A retries model calls itself (planned for E2A v1.5.1), set it to 0:
-one retry authority. Setting 0 before then means no layer retries a 429 or a 503.
+### Retries
+
+E2A (v1.5.1+) retries a model call by error class: throttled, overloaded and transient
+failures, honouring `Retry-After` within the request deadline, and throttling never opens the
+circuit. So the provider SDKs do not retry (`llm_sdk_max_retries` = 0): one retry authority.
+`check_llm_service` proves it for every profile: a replayed HTTP 429 is retried by E2A through
+each provider's real SDK.
 
 Wire replay means the real provider SDK builds, signs (SigV4 for Bedrock) and parses the
 calls; only the HTTP endpoint is replaced by a responder backed by the projects' own rules.

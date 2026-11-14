@@ -42,11 +42,9 @@
 ## Design tensions
 
 * **Double ownership.** Retries, quotas, caching and screening exist on both sides. The
-  repository makes E2A the single owner of each (docs/ARCHITECTURE.md), **except retries for
-  now**: E2A v1.5.0 never retries a model call, so the provider SDKs do
-  (`llm_sdk_max_retries`, default 2) until E2A does (planned for v1.5.1). Teams must keep
-  E2A quotas below provider quotas, or they will see provider 429s instead of E2A's typed
-  admission refusals.
+  repository makes E2A the single owner of each (docs/ARCHITECTURE.md): since E2A v1.5.1 that
+  includes model-call retries (the SDKs' own are 0). Teams must keep E2A quotas below
+  provider quotas, or they will see provider 429s instead of E2A's typed admission refusals.
 * **`DelegatedAgent` overrides a protected seam** (`_resolve_llm_service`), not a declared
   E2A hook. Conformance accepts it, but it may change; per-agent configuration in E2A
   (proposal P3) is the intended replacement.

@@ -1,12 +1,14 @@
-"""Capability matrix: what a bound managed service can do on its platform.
+"""Capabilities: E2A's (`e2a.capabilities`, since E2A v1.6.0), plus this package's enum of names.
 
-The same model can expose different features on different platforms (Claude on Amazon
-Bedrock has no Anthropic MCP connector; Claude Platform on AWS has). A profile lists the
-features the deployment relies on (`managed_features`); Bindings.verify() refuses to
-start when no bound object provides one, instead of failing on the first request.
+The registry, the checks and CapabilityError are E2A's own. `Capability` remains here as a
+convenience for the provider classes (`Capability.TOOL_USE`); every name in it is registered
+in E2A's registry, so a profile's `features` and a class's `capabilities` are checked by E2A.
 """
 from enum import Enum
-from typing import Any, Dict, FrozenSet, Iterable
+
+from e2a.capabilities import CAPABILITIES, CapabilityError, capabilities_of, missing, register_capability
+
+__all__ = ["Capability", "CapabilityError", "capabilities_of", "missing"]
 
 
 class Capability(str, Enum):
@@ -39,20 +41,6 @@ class Capability(str, Enum):
     RELEASE_PIPELINE = "release_pipeline"
 
 
-class CapabilityError(RuntimeError):
-    """A profile requires a feature that none of its bindings provides on that platform."""
-
-
-def capabilities_of(obj: Any, config: Dict[str, Any]) -> FrozenSet[str]:
-    """A bound object declares `capabilities` (a set) or `capabilities_for(config)`."""
-    if obj is None:
-        return frozenset()
-    fn = getattr(obj, "capabilities_for", None)
-    if callable(fn):
-        return frozenset(str(Capability(c).value) for c in fn(config))
-    return frozenset(str(Capability(c).value) for c in getattr(obj, "capabilities", ()))
-
-
-def missing(required: Iterable[str], provided: Iterable[str]) -> list:
-    have = {Capability(c).value for c in provided}
-    return sorted({Capability(c).value for c in required} - have)
+for _c in Capability:                       # idempotent: E2A already knows the common ones
+    if _c.value not in CAPABILITIES:
+        register_capability(_c.value)

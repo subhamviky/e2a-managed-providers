@@ -145,10 +145,35 @@ def decode_gemini(body: Dict[str, Any]) -> List[Dict[str, Any]]:
 
 # ------------------------------------------------------------------ response encoders
 def _answer(responder: Responder, messages) -> Dict[str, Any]:
+    """The responder's answer: text, or a dict with text / tool_calls / stop_reason, or
+    {"error_status": 429, "retry_after": 1} to answer the HTTP request with that status (the
+    shape E2A's port contract kit, check_llm_service, uses)."""
     out = responder(messages)
     if isinstance(out, str):
         return {"text": out, "tool_calls": []}
+    if out.get("error_status"):
+        return {"error_status": int(out["error_status"]), "retry_after": out.get("retry_after")}
     return {"text": out.get("text", ""), "tool_calls": out.get("tool_calls") or [], "stop_reason": out.get("stop_reason")}
+
+
+_ERROR_STATUS = {400: "INVALID_ARGUMENT", 401: "UNAUTHENTICATED", 403: "PERMISSION_DENIED", 404: "NOT_FOUND",
+                 429: "RESOURCE_EXHAUSTED", 500: "INTERNAL", 503: "UNAVAILABLE", 529: "UNAVAILABLE"}
+_ERROR_TYPE = {400: "invalid_request_error", 401: "authentication_error", 403: "permission_error",
+               404: "not_found_error", 429: "rate_limit_error", 500: "api_error", 503: "overloaded_error",
+               529: "overloaded_error"}
+
+
+def error_response(answer: Dict[str, Any]) -> tuple:
+    """An HTTP error every provider SDK understands: Anthropic and OpenAI read error.type and
+    error.message, Google reads error.code and error.status; all honour Retry-After."""
+    status = answer["error_status"]
+    headers = {"content-type": "application/json", "x-should-retry": "true"}
+    if answer.get("retry_after") is not None:
+        headers["retry-after"] = str(answer["retry_after"])
+    body = {"type": "error", "error": {"type": _ERROR_TYPE.get(status, "api_error"), "code": status,
+                                       "status": _ERROR_STATUS.get(status, "UNKNOWN"),
+                                       "message": f"replayed HTTP {status}"}}
+    return status, headers, json.dumps(body).encode()
 
 
 def _tokens(messages, text) -> tuple:
@@ -180,7 +205,9 @@ def encode_openai_responses(body, answer, messages) -> Dict[str, Any]:
                        "call_id": c.get("id") or f"call_{uuid.uuid4().hex[:8]}", "name": c["name"],
                        "arguments": json.dumps(c.get("arguments", {})), "status": "completed"})
     return {"id": f"resp_{uuid.uuid4().hex[:16]}", "object": "response", "created_at": 0, "model": body.get("model"),
-            "status": "completed", "output": output, "parallel_tool_calls": True, "tool_choice": "auto", "tools": [],
+            "status": "incomplete" if answer.get("stop_reason") == "max_tokens" else "completed",
+            "incomplete_details": {"reason": "max_output_tokens"} if answer.get("stop_reason") == "max_tokens" else None,
+            "output": output, "parallel_tool_calls": True, "tool_choice": "auto", "tools": [],
             "usage": {"input_tokens": inp, "output_tokens": out, "total_tokens": inp + out,
                       "input_tokens_details": {"cached_tokens": 0}, "output_tokens_details": {"reasoning_tokens": 0}}}
 
@@ -190,12 +217,16 @@ def encode_openai_chat(body, answer, messages) -> Dict[str, Any]:
     calls = [{"id": c.get("id") or f"call_{uuid.uuid4().hex[:8]}", "type": "function",
               "function": {"name": c["name"], "arguments": json.dumps(c.get("arguments", {}))}}
              for c in answer["tool_calls"]]
-    msg: Dict[str, Any] = {"role": "assistant", "content": answer["text"] or None}
+    refused = answer.get("stop_reason") == "refusal"
+    msg: Dict[str, Any] = {"role": "assistant", "content": None if refused else (answer["text"] or None)}
+    if refused:
+        msg["refusal"] = answer["text"] or "refused"
     if calls:
         msg["tool_calls"] = calls
+    finish = ("tool_calls" if calls else "content_filter" if refused else
+              "length" if answer.get("stop_reason") == "max_tokens" else "stop")
     return {"id": f"chatcmpl-{uuid.uuid4().hex[:12]}", "object": "chat.completion", "created": 0,
-            "model": body.get("model"), "choices": [{"index": 0, "message": msg,
-                                                     "finish_reason": "tool_calls" if calls else "stop"}],
+            "model": body.get("model"), "choices": [{"index": 0, "message": msg, "finish_reason": finish}],
             "usage": {"prompt_tokens": inp, "completion_tokens": out, "total_tokens": inp + out}}
 
 
@@ -203,7 +234,7 @@ def encode_gemini(body, answer, messages) -> Dict[str, Any]:
     inp, out = _tokens(messages, answer["text"])
     parts = ([{"text": answer["text"]}] if answer["text"] else []) + [
         {"functionCall": {"name": c["name"], "args": c.get("arguments", {})}} for c in answer["tool_calls"]]
-    finish = "SAFETY" if answer.get("stop_reason") == "refusal" else "STOP"
+    finish = {"refusal": "SAFETY", "max_tokens": "MAX_TOKENS"}.get(answer.get("stop_reason"), "STOP")
     return {"candidates": [{"content": {"role": "model", "parts": parts}, "finishReason": finish, "index": 0}],
             "usageMetadata": {"promptTokenCount": inp, "candidatesTokenCount": out, "totalTokenCount": inp + out},
             "modelVersion": "replay", "responseId": uuid.uuid4().hex[:12]}
@@ -290,6 +321,8 @@ class ReplayTransport:
                 return 200, {"content-type": "application/json"}, json.dumps(handler(body)).encode()
         messages = self.decode(body)
         answer = _answer(self.responder, messages)
+        if answer.get("error_status"):
+            return error_response(answer)
         streaming = body.get("stream") is True or "stream" in url.rsplit("/", 1)[-1].lower() or "alt=sse" in url
         if streaming:
             return 200, {"content-type": "text/event-stream"}, self.encode_sse(body, answer, messages)

@@ -1,6 +1,6 @@
 """python -m e2a_managed <command>
 
-    profiles                 list the provider profiles
+    profiles                 list this package's managed-provider profiles
     verify <profile>         bind every seam and check the profile's required features
     env <profile>            the environment variables a deployment of <profile> sets (.env template)
     reference                configuration reference for every managed key (markdown)
@@ -13,7 +13,7 @@ from e2a import E2A_CONFIG
 
 from . import available_profiles, bindings_from_profile
 from .config_keys import MANAGED_KEYS
-from .profile import ProviderProfile
+from .profile import ProviderProfile, provider_profiles
 
 _VAR = re.compile(r"\$\{([A-Z0-9_]+)(?::-(.*?))?\}")
 
@@ -44,7 +44,7 @@ def _reference() -> str:
 
 def _matrix() -> str:
     from .capabilities import Capability
-    names = available_profiles()
+    names = provider_profiles()
     provided = {n: {c for caps in bindings_from_profile(n).verify([]).values() for c in caps} for n in names}
     rows = ["| Capability | " + " | ".join(names) + " |", "|---" * (len(names) + 1) + "|"]
     for cap in Capability:
@@ -59,7 +59,7 @@ def main(argv=None) -> int:
         return 0
     cmd = args[0]
     if cmd == "profiles":
-        for name in available_profiles():
+        for name in provider_profiles():
             p = ProviderProfile.load(name)
             print(f"{name:32} {p.provider:10} {p.cloud:6} {len(p.bindings)} seams")
     elif cmd == "verify":

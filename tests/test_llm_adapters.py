@@ -92,7 +92,8 @@ async def test_refusal_is_typed_and_retried_once_on_the_fallback_model(profile):
         return {"text": "I can't help with that.", "stop_reason": "refusal"}
     svc, rt = offline_llm_service(profile, refuse, fallback_model_id=None)
     out = await svc.process_inference([SYSTEM, USER], tenant_id="acme")
-    assert out["status"] == "FAILED" and out["error_type"] == ModelRefusal.__name__
+    # E2A v1.6.0: a refusal is a typed policy outcome (REFUSED), not a failure
+    assert out["status"] == "REFUSED" and out["refusal"]["detail"] == "I can't help with that."
 
     calls = []
 
@@ -106,11 +107,9 @@ async def test_refusal_is_typed_and_retried_once_on_the_fallback_model(profile):
 
 
 @pytest.mark.parametrize("profile", PROFILES)
-async def test_e2a_still_owns_dlp_and_the_sdk_retries_until_e2a_does(profile):
+async def test_e2a_owns_dlp_and_retries(profile):
     svc, rt = offline_llm_service(profile, lambda m: "Customer SSN is 123-45-6789.")
     out = await svc.process_inference([SYSTEM, USER], tenant_id="acme")
     assert "123-45-6789" not in out["text"] and out["dlp_redactions"] == 1
-    # E2A v1.5.0 never retries a model call, so the SDK must (it honours Retry-After). Once
-    # E2A v1.5.1 (P7) is pinned, llm_sdk_max_retries=0 makes E2A the single retry authority.
-    assert svc._sdk_options({}, {})["max_retries"] == 2
-    assert svc._sdk_options({"llm_sdk_max_retries": 0}, {})["max_retries"] == 0
+    # E2A (v1.5.1+) retries model calls by error class, so the SDKs do not: one retry authority.
+    assert svc._sdk_options({}, {})["max_retries"] == 0

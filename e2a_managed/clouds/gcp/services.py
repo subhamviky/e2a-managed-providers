@@ -109,7 +109,7 @@ class VertexVectorSearchIndex(_GoogleRest, ManagedVectorIndex):
         (removing an absent id is a no-op). A project with its own chunk ids passes them
         in config['vertex_delete_ids'] or re-ingests into a fresh index."""
         ids = sorted(self._written.get((namespace, doc_id), set())) or \
-            [f"{namespace}/{doc_id}#{i}" for i in range(int(self.config.get("vertex_max_chunks_per_doc", 256)))]
+            [f"{namespace}/{doc_id}#{i}" for i in range(int((self.config.get("profile_settings") or {}).get("vertex_max_chunks_per_doc") or self.config.get("vertex_max_chunks_per_doc") or 256))]
         for i in range(0, len(ids), 1000):
             self._post(self._api(resolve_config("vertex_index", self.config), "removeDatapoints"),
                        {"datapoint_ids": ids[i:i + 1000]})
