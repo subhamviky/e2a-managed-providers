@@ -25,9 +25,9 @@ SUITES=(
   "financial-settlement-platform/audit-ai-service|audit_ai_service.services.llm:build_audit_llm"
 )
 # The SDKs every profile's model adapter needs, plus the test tooling the projects use.
-RUNTIME_DEPS=(pyyaml "httpx>=0.27" "anthropic[bedrock,aws]>=2.0" "openai>=3.0" "google-genai>=3.0"
-              "llama-stack-client>=0.7" boto3 azure-identity azure-cosmos google-cloud-firestore
-              pytest pytest-asyncio "moto[dynamodb,sqs]>=5.0" jsonschema)
+# Test tools only: the provider and cloud SDKs come from this package's own [all] extra (one list,
+# so a cloud profile's SDK cannot be missing here and present in the package, or the reverse)
+RUNTIME_DEPS=(pytest pytest-asyncio "moto[dynamodb,sqs]>=5.0" jsonschema)
 # The Cosmos DB emulator's published, well-known key (not a secret).
 COSMOS_EMULATOR_KEY="C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw=="
 
@@ -49,7 +49,7 @@ python_for() {                      # $1 = project dir; prints the python to use
     "$venv/bin/pip" install -q --upgrade pip >&2
     "$venv/bin/pip" install -q -e "$1" >&2                       # the project with its own pins
     "$venv/bin/pip" install -q "${RUNTIME_DEPS[@]}" >&2
-    "$venv/bin/pip" install -q -e "$HERE" >&2                    # this package with its E2A (>= v1.6.1)
+    "$venv/bin/pip" install -q -e "$HERE[all]" >&2               # this package, its SDKs, its E2A (>= v1.7.0)
   fi
   echo "$venv/bin/python"
 }
