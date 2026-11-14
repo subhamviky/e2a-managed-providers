@@ -204,4 +204,5 @@ class LlamaStackResponsesRuntime(ResponsesAgentRuntime):
     provider = "llama_stack_responses"
 
     def _build_client(self, config, kwargs):
-        return llama_client(config, kwargs, async_=True, max_retries=0)
+        return llama_client(config, kwargs, async_=True,
+                            max_retries=int(self._resolve_param("llm_sdk_max_retries", config, kwargs)))

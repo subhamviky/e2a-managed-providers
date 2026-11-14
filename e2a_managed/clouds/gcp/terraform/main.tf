@@ -90,3 +90,13 @@ resource "google_firestore_database" "state" {
   type        = "FIRESTORE_NATIVE"
   depends_on  = [google_project_service.apis]
 }
+
+# e2a-adapters' Firestore stores set a "ttl" timestamp on claims: garbage collection only,
+# correctness uses their own expiry fields.
+resource "google_firestore_field" "ttl" {
+  for_each   = toset(["e2a_idempotency", "e2a_checkpoints"])
+  database   = google_firestore_database.state.name
+  collection = each.value
+  field      = "ttl"
+  ttl_config {}
+}

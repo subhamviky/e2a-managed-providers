@@ -6,7 +6,7 @@
     VertexAgentEngineRuntime    DelegatedRuntime  an ADK agent on Vertex AI Agent Engine
     IAPGatewayTool              MCPToolService    MCP server on Cloud Run behind IAP / Apigee (ID token)
     FirestoreIdempotencyStore /
-    FirestoreCheckpointStore                      create() + update_time precondition
+    FirestoreCheckpointStore                      e2a-adapters (E2A v1.5), bound from config
     GCPObservability, GCPManagedInfraProvisioner, GCPReleasePipeline
 
 REST calls carry an ADC bearer token; the httpx transport is injectable for tests.
@@ -29,7 +29,7 @@ from ...managed_rag import ManagedReranker, ManagedVectorIndex, content_words
 from ...mcp_gateway import ManagedMCPGatewayTool
 from ...observability import ManagedObservability
 from ...release import ManagedReleasePipeline
-from ...stores import ConditionalCheckpointStore, ConditionalIdempotencyStore
+from ...stores import AdapterCheckpointStore, AdapterIdempotencyStore
 
 TERRAFORM = Path(__file__).parent / "terraform"
 SPARSE_DIM = 2 ** 20
@@ -228,48 +228,30 @@ class IAPGatewayTool(ManagedMCPGatewayTool):
 
 
 # ------------------------------------------------------------------------ Firestore stores
-class _FirestoreRecords:
-    collection = "e2a_idempotency"
-
-    def __init__(self, config: Optional[Dict[str, Any]] = None, client: Any = None) -> None:
-        self.config, self._client = dict(config or {}), client
-
-    @property
-    def client(self):
-        if self._client is None:
-            from google.cloud import firestore
-            self._client = firestore.Client(project=resolve_config("gcp_project", self.config),
-                                            database=resolve_config("firestore_database", self.config))
-        return self._client
-
-    def _doc(self, key):
-        return self.client.collection(self.collection).document(hashlib.sha256(key.encode()).hexdigest())
-
-    def _read(self, key):
-        snap = self._doc(key).get()
-        if not snap.exists:
-            return None, None
-        return json.loads(snap.get("doc")), snap.update_time
-
-    def _write_if(self, key, record, expected_version):
-        from google.api_core.exceptions import AlreadyExists, FailedPrecondition
-        ref, body = self._doc(key), {"doc": json.dumps(record, default=str), "key": key}
-        try:
-            if expected_version is None:
-                ref.create(body)
-            else:
-                ref.update(body, option=self.client.write_option(last_update_time=expected_version))
-            return True
-        except (AlreadyExists, FailedPrecondition):
-            return False
+def _firestore_adapter(store, kind: str, collection: str):
+    """The e2a-adapters Firestore store on <firestore_database>, collection `collection`
+    (a TTL policy on its `ttl` field: terraform/main.tf)."""
+    import e2a_adapters.gcp as adapters
+    client = store._injected.get("client")
+    if client is None:
+        from google.cloud import firestore
+        client = firestore.Client(project=resolve_config("gcp_project", store.config),
+                                  database=resolve_config("firestore_database", store.config))
+    return getattr(adapters, kind)(client, collection, clock=store._clock)
 
 
-class FirestoreIdempotencyStore(_FirestoreRecords, ConditionalIdempotencyStore):
-    collection = "e2a_idempotency"
+class FirestoreIdempotencyStore(AdapterIdempotencyStore):
+    """E2A claims on Firestore: e2a-adapters' FirestoreIdempotencyStore, bound from config."""
+
+    def _build(self):
+        return _firestore_adapter(self, "FirestoreIdempotencyStore", "e2a_idempotency")
 
 
-class FirestoreCheckpointStore(_FirestoreRecords, ConditionalCheckpointStore):
-    collection = "e2a_checkpoints"
+class FirestoreCheckpointStore(AdapterCheckpointStore):
+    """Approval checkpoints on Firestore: e2a-adapters' FirestoreCheckpointStore, bound from config."""
+
+    def _build(self):
+        return _firestore_adapter(self, "FirestoreCheckpointStore", "e2a_checkpoints")
 
 
 # ------------------------------------------------------------------------ substrate

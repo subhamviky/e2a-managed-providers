@@ -1,74 +1,46 @@
 """AWS substrate shared by every provider profile on AWS: stores, telemetry, IaC, CI/CD.
 
-    DynamoDBIdempotencyStore / DynamoDBCheckpointStore   conditional writes on a version attribute
+    DynamoDBIdempotencyStore / DynamoDBCheckpointStore   e2a-adapters (E2A v1.5), bound from config
     AWSObservability                                     OTel -> ADOT collector -> CloudWatch / X-Ray
     AWSInfraProvisioner                                  E2A landing zone + managed AI resources -> tfvars
     AWSReleasePipeline                                   ECR images, Lambda alias / ECS canary rollout
 """
-import json
-from decimal import Decimal
 from pathlib import Path
-from typing import Any, Dict, Optional
 
 from e2a import resolve_config
 
 from ...iac import TerraformInfraProvisioner
 from ...observability import ManagedObservability
 from ...release import ManagedReleasePipeline
-from ...stores import ConditionalCheckpointStore, ConditionalIdempotencyStore
+from ...stores import AdapterCheckpointStore, AdapterIdempotencyStore
 
 TERRAFORM = Path(__file__).parent / "terraform"
 
 
-class _DynamoDBRecords:
-    """Record = JSON document + numeric `version`. Strongly consistent reads; every write
-    is conditional (attribute_not_exists(pk) or version = :expected)."""
-    table_key = "dynamodb_idempotency_table"
-
-    def __init__(self, config: Optional[Dict[str, Any]] = None, client: Any = None) -> None:
-        self.config, self._client = dict(config or {}), client
-
-    @property
-    def client(self):
-        if self._client is None:
-            import boto3
-            self._client = boto3.client("dynamodb", region_name=resolve_config("aws_region", self.config))
-        return self._client
-
-    @property
-    def table(self) -> str:
-        return resolve_config(self.table_key, self.config)
-
-    def _read(self, key):
-        item = self.client.get_item(TableName=self.table, Key={"pk": {"S": key}}, ConsistentRead=True).get("Item")
-        if not item:
-            return None, None
-        return json.loads(item["doc"]["S"]), int(item["version"]["N"])
-
-    def _write_if(self, key, record, expected_version):
-        item = {"pk": {"S": key}, "doc": {"S": json.dumps(record, default=_json_default)},
-                "version": {"N": str((expected_version or 0) + 1)}}
-        if record.get("expires_at"):
-            item["ttl"] = {"N": str(int(float(record["expires_at"])) + 86400)}   # GC only, never correctness
-        cond = ({"ConditionExpression": "attribute_not_exists(pk)"} if expected_version is None else
-                {"ConditionExpression": "version = :v", "ExpressionAttributeValues": {":v": {"N": str(expected_version)}}})
-        try:
-            self.client.put_item(TableName=self.table, Item=item, **cond)
-            return True
-        except self.client.exceptions.ConditionalCheckFailedException:
-            return False
+def _dynamodb_adapter(store, kind: str, table_key: str):
+    """The e2a-adapters DynamoDB store on the table this package's config names. The table has
+    string keys `pk` and `sk` (terraform/main.tf) and TTL on `ttl`."""
+    import e2a_adapters.aws as adapters
+    client = store._injected.get("client")
+    if client is None:
+        import boto3
+        client = boto3.client("dynamodb", region_name=resolve_config("aws_region", store.config))
+    return getattr(adapters, kind)(client=client, table_name=resolve_config(table_key, store.config),
+                                   clock=store._clock)
 
 
-def _json_default(v):
-    return float(v) if isinstance(v, Decimal) else str(v)
+class DynamoDBIdempotencyStore(AdapterIdempotencyStore):
+    """E2A claims on DynamoDB: e2a-adapters' DynamoDBIdempotencyStore, bound from config."""
+
+    def _build(self):
+        return _dynamodb_adapter(self, "DynamoDBIdempotencyStore", "dynamodb_idempotency_table")
 
 
-class DynamoDBIdempotencyStore(_DynamoDBRecords, ConditionalIdempotencyStore):
-    table_key = "dynamodb_idempotency_table"
+class DynamoDBCheckpointStore(AdapterCheckpointStore):
+    """Approval checkpoints on DynamoDB: e2a-adapters' DynamoDBCheckpointStore, bound from config."""
 
-
-class DynamoDBCheckpointStore(_DynamoDBRecords, ConditionalCheckpointStore):
-    table_key = "dynamodb_checkpoint_table"
+    def _build(self):
+        return _dynamodb_adapter(self, "DynamoDBCheckpointStore", "dynamodb_checkpoint_table")
 
 
 class AWSObservability(ManagedObservability):

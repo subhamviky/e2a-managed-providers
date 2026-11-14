@@ -36,7 +36,6 @@ config:
   llm_max_latency: ${LLM_MAX_LATENCY:-60}
   context_budget: ${LLM_CONTEXT_BUDGET:-150000}
   max_output_tokens: ${LLM_MAX_OUTPUT_TOKENS:-4096}
-  llm_sdk_max_retries: 0              # E2A's ResiliencePolicy is the only retry authority
   embedding_model_id: ${EMBEDDING_MODEL_ID:-amazon.titan-embed-text-v2:0}
   embedding_dimensions: ${EMBEDDING_DIMENSIONS:-1024}
   rerank_model_id: ${RERANK_MODEL_ID:-cohere.rerank-v3-5:0}

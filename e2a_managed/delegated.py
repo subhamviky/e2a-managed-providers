@@ -99,7 +99,12 @@ class DelegatedRuntime(BaseLLMAgentService):
 class DelegatedAgent(BaseAgent):
     """An agent whose model step is a managed runtime. Everything else is BaseAgent's.
     The runtime is the agent's own (bound with the agent's read tools), so the rest of
-    the workflow keeps using config['llm_service']."""
+    the workflow keeps using config['llm_service'].
+
+    Caveat: this overrides `_resolve_llm_service`, a protected E2A seam that is not a
+    declared extension hook and may change. Once E2A resolves configuration per agent
+    (proposal P3: `scopes.agent.<Agent>.llm_service`), bind the runtime there instead and
+    drop this class."""
 
     def __init__(self, runtime: DelegatedRuntime) -> None:
         self.runtime = runtime

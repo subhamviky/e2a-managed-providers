@@ -6,7 +6,7 @@
     AzureContentSafetyStage     IngressStage      Prompt Shields (jailbreak / injection) + harm categories
     APIMGatewayTool             MCPToolService    Azure API Management in front of MCP servers
     CosmosIdempotencyStore /
-    CosmosCheckpointStore                         ETag (If-Match) conditional replace
+    CosmosCheckpointStore                         e2a-adapters (E2A v1.5), bound from config
     AzureObservability, AzureInfraProvisioner, AzureReleasePipeline
 
 REST calls use httpx with Entra ID bearer tokens (or a key when configured). The
@@ -15,7 +15,7 @@ transport is injectable, so tests drive the exact request bodies the services do
 import base64
 import json
 from pathlib import Path
-from typing import Any, Dict, FrozenSet, List, Optional
+from typing import Any, Dict, FrozenSet, Optional
 
 import httpx
 from e2a import resolve_config
@@ -27,7 +27,7 @@ from ...managed_rag import ManagedReranker, ManagedVectorIndex
 from ...mcp_gateway import ManagedMCPGatewayTool
 from ...observability import ManagedObservability
 from ...release import ManagedReleasePipeline
-from ...stores import ConditionalCheckpointStore, ConditionalIdempotencyStore
+from ...stores import AdapterCheckpointStore, AdapterIdempotencyStore
 
 SEARCH_API = "2024-07-01"
 CONTENT_SAFETY_API = "2024-09-01"
@@ -163,51 +163,32 @@ class APIMGatewayTool(ManagedMCPGatewayTool):
 
 
 # ------------------------------------------------------------------------ Cosmos DB stores
-class _CosmosRecords:
-    container_name = "idempotency"
-
-    def __init__(self, config: Optional[Dict[str, Any]] = None, container: Any = None) -> None:
-        self.config, self._container = dict(config or {}), container
-
-    @property
-    def container(self):
-        if self._container is None:
-            from azure.cosmos import CosmosClient
-            from azure.identity import DefaultAzureCredential
-            client = CosmosClient(resolve_config("cosmos_endpoint", self.config), credential=DefaultAzureCredential())
-            self._container = client.get_database_client(resolve_config("cosmos_database", self.config)) \
-                .get_container_client(self.container_name)
-        return self._container
-
-    def _read(self, key):
-        from azure.cosmos.exceptions import CosmosResourceNotFoundError
-        try:
-            item = self.container.read_item(item=_key(key), partition_key=_key(key))
-        except CosmosResourceNotFoundError:
-            return None, None
-        return json.loads(item["doc"]), item["_etag"]
-
-    def _write_if(self, key, record, expected_version):
-        from azure.core import MatchConditions
-        from azure.cosmos.exceptions import CosmosAccessConditionFailedError, CosmosResourceExistsError
-        body = {"id": _key(key), "pk": _key(key), "doc": json.dumps(record, default=str)}
-        try:
-            if expected_version is None:
-                self.container.create_item(body)
-            else:
-                self.container.replace_item(item=body["id"], body=body, etag=expected_version,
-                                            match_condition=MatchConditions.IfNotModified)
-            return True
-        except (CosmosResourceExistsError, CosmosAccessConditionFailedError):
-            return False
+def _cosmos_adapter(store, kind: str, container_name: str):
+    """The e2a-adapters Cosmos DB store on <cosmos_database>/<container_name> (partition key
+    /pk, TTL on: terraform/main.tf). Entra ID only: the account has local keys disabled."""
+    import e2a_adapters.azure as adapters
+    container = store._injected.get("container")
+    if container is None:
+        from azure.cosmos import CosmosClient
+        from azure.identity import DefaultAzureCredential
+        client = CosmosClient(resolve_config("cosmos_endpoint", store.config), credential=DefaultAzureCredential())
+        container = client.get_database_client(resolve_config("cosmos_database", store.config)) \
+            .get_container_client(container_name)
+    return getattr(adapters, kind)(container, clock=store._clock)
 
 
-class CosmosIdempotencyStore(_CosmosRecords, ConditionalIdempotencyStore):
-    container_name = "idempotency"
+class CosmosIdempotencyStore(AdapterIdempotencyStore):
+    """E2A claims on Cosmos DB: e2a-adapters' CosmosIdempotencyStore, bound from config."""
+
+    def _build(self):
+        return _cosmos_adapter(self, "CosmosIdempotencyStore", "idempotency")
 
 
-class CosmosCheckpointStore(_CosmosRecords, ConditionalCheckpointStore):
-    container_name = "checkpoints"
+class CosmosCheckpointStore(AdapterCheckpointStore):
+    """Approval checkpoints on Cosmos DB: e2a-adapters' CosmosCheckpointStore, bound from config."""
+
+    def _build(self):
+        return _cosmos_adapter(self, "CosmosCheckpointStore", "checkpoints")
 
 
 # ------------------------------------------------------------------------ substrate

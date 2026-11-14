@@ -16,9 +16,23 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install -e ".[dev]" "moto[dynamodb]" azure-cosmos google-cloud-firestore
-      - name: Unit, contract and offline wire-replay tests (all providers, real SDKs)
-        run: pytest -q
+      - run: pip install -e ".[dev]"      # the extras alone: nothing installed by name here
+      - name: Start DynamoDB Local and the Firestore and Cosmos DB emulators (the stores' contract, races included)
+        run: |
+          docker run -d --name ddb -p 8000:8000 amazon/dynamodb-local:latest -jar DynamoDBLocal.jar -inMemory -port 8000
+          docker run -d --name firestore -p 8085:8085 gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators \
+            gcloud emulators firestore start --host-port=0.0.0.0:8085
+          docker run -d --name cosmos -p 8081:8081 mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:vnext-preview
+          for port in 8000 8085 8081; do
+            for _ in $(seq 90); do curl -s -o /dev/null "http://127.0.0.1:$port/" && break; sleep 2; done
+          done
+          for _ in $(seq 60); do docker logs cosmos 2>&1 | grep -q "Gateway=OK" && break; sleep 2; done
+      - name: Unit, contract and offline wire-replay tests (all providers, real SDKs; stores on the emulators)
+        env:
+          DYNAMODB_LOCAL_ENDPOINT: http://127.0.0.1:8000
+          FIRESTORE_EMULATOR_HOST: 127.0.0.1:8085
+          COSMOS_EMULATOR_ENDPOINT: http://127.0.0.1:8081
+        run: pytest -q -rs
       - name: Every profile binds and provides its features
         run: for p in $(python -m e2a_managed profiles | awk '{print $1}'); do python -m e2a_managed verify "$p"; done
 
@@ -51,11 +65,25 @@ jobs:
           python-version: "3.12"
       - name: Tooling for the runner (profiles CLI)
         run: pip install -e e2a-managed-providers
+      - name: Start the Firestore and Cosmos DB emulators (the projects' shared-state tests)
+        run: |
+          docker run -d --name firestore -p 8085:8085 gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators \
+            gcloud emulators firestore start --host-port=0.0.0.0:8085
+          docker run -d --name cosmos -p 8081:8081 mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:vnext-preview
+          for _ in $(seq 90); do curl -s -o /dev/null http://127.0.0.1:8085/ && break; sleep 2; done
+          for _ in $(seq 90); do docker logs cosmos 2>&1 | grep -q "Gateway=OK" && break; sleep 2; done
       - name: Project test suites on ${{ matrix.profile }} (offline replay, one venv per project)
         working-directory: e2a-managed-providers
         # The projects pin different E2A releases, so each runs in its own venv built from
-        # its own pyproject; this package is added there without its dependencies.
-        run: ISOLATED=1 PROJECTS_DIR=.. ./examples/run_project_suites.sh ${{ matrix.profile }}
+        # its own pyproject; this package is added there without its dependencies. O2C and
+        # audit-ai run a second time with their state on the emulators.
+        env:
+          FIRESTORE_EMULATOR_HOST: 127.0.0.1:8085
+          COSMOS_EMULATOR_ENDPOINT: http://127.0.0.1:8081
+          EVIDENCE_FILE: ${{ runner.temp }}/evidence.md
+        run: |
+          ISOLATED=1 PROJECTS_DIR=.. ./examples/run_project_suites.sh ${{ matrix.profile }}
+          cat "$EVIDENCE_FILE" >> "$GITHUB_STEP_SUMMARY"
       - name: Landscape scenario on ${{ matrix.profile }}
         working-directory: e2a-managed-providers
         run: |

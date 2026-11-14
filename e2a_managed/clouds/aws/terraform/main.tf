@@ -27,15 +27,22 @@ locals {
 
 data "aws_caller_identity" "this" {}
 
-# ---- E2A state: idempotency claims and approval checkpoints (conditional writes on `version`)
+# ---- E2A state: idempotency claims and approval checkpoints (e2a-adapters' DynamoDB stores:
+# one item per key under pk/sk, every change one conditional write)
 resource "aws_dynamodb_table" "state" {
   for_each     = { idempotency = var.idempotency_table, checkpoints = var.checkpoint_table }
   name         = each.value
   billing_mode = "PAY_PER_REQUEST"
   hash_key     = "pk"
+  range_key    = "sk"
 
   attribute {
     name = "pk"
+    type = "S"
+  }
+
+  attribute {
+    name = "sk"
     type = "S"
   }
 
@@ -141,7 +148,7 @@ data "aws_iam_policy_document" "tier2" {
   }
   statement {
     sid       = "State"
-    actions   = ["dynamodb:GetItem", "dynamodb:PutItem"]
+    actions   = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem"] # claims update, checkpoints put
     resources = [for t in aws_dynamodb_table.state : t.arn]
   }
   statement {

@@ -9,6 +9,10 @@
 # that cannot share one environment. This package is added to each venv without its
 # dependencies, so it runs on the E2A version the project pins.
 # E2A_SWAP_LIVE=true sends the calls to the providers for real (credentials required).
+#
+# With FIRESTORE_EMULATOR_HOST / COSMOS_EMULATOR_ENDPOINT set, O2C and audit-ai-service run a
+# second time with their state on the emulator (their multi-instance / multi-replica tests).
+# EVIDENCE_FILE=<path> writes the results as a Markdown table (CI adds it to the run summary).
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
 PROJECTS_DIR="$(cd "${PROJECTS_DIR:-..}" && pwd)"
@@ -22,8 +26,20 @@ SUITES=(
 )
 # The SDKs every profile's model adapter needs, plus the test tooling the projects use.
 RUNTIME_DEPS=(pyyaml "httpx>=0.27" "anthropic[bedrock,aws]>=2.0" "openai>=3.0" "google-genai>=3.0"
-              "llama-stack-client>=0.7" boto3 azure-identity pytest pytest-asyncio
-              "moto[dynamodb,sqs]>=5.0" jsonschema)
+              "llama-stack-client>=0.7" boto3 azure-identity azure-cosmos google-cloud-firestore
+              pytest pytest-asyncio "moto[dynamodb,sqs]>=5.0" jsonschema)
+# The Cosmos DB emulator's published, well-known key (not a secret).
+COSMOS_EMULATOR_KEY="C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw=="
+
+state_env() {                       # $1 = project dir; prints the env of its stateful pass, if any
+  case "$1" in
+    *o2c-agent-service) [ -n "${FIRESTORE_EMULATOR_HOST:-}" ] && \
+        echo "O2C_STATE_BACKEND=firestore GOOGLE_CLOUD_PROJECT=demo-o2c";;
+    *audit-ai-service) [ -n "${COSMOS_EMULATOR_ENDPOINT:-}" ] && \
+        echo "AUDIT_STATE_BACKEND=cosmos COSMOS_ENDPOINT=$COSMOS_EMULATOR_ENDPOINT COSMOS_KEY=$COSMOS_EMULATOR_KEY";;
+  esac
+  return 0
+}
 
 python_for() {                      # $1 = project dir; prints the python to use
   if [ "${ISOLATED:-0}" != "1" ]; then command -v python; return; fi
@@ -39,16 +55,24 @@ python_for() {                      # $1 = project dir; prints the python to use
 }
 
 status=0
+[ -n "${EVIDENCE_FILE:-}" ] && printf '| Profile | Project | State | Result |\n|---|---|---|---|\n' > "$EVIDENCE_FILE"
+run_one() {                         # $1 dir  $2 factory  $3 profile  $4 label  $5 extra env
+  local out rc summary
+  out=$(cd "$1" && env $5 E2A_PROVIDER_PROFILE="$3" E2A_SWAP_FACTORIES="$2" \
+        "$py" -m pytest -q -rs -p e2a_managed.pytest_plugin -p no:cacheprovider 2>&1) && rc=0 || rc=$?
+  summary=$(echo "$out" | grep -E "passed|failed|error" | tail -1)
+  printf '%-32s %-50s %-10s %s\n' "$3" "${1#$PROJECTS_DIR/}" "$4" "$summary"
+  [ -n "${EVIDENCE_FILE:-}" ] && printf '| %s | %s | %s | %s |\n' "$3" "${1#$PROJECTS_DIR/}" "$4" "$summary" >> "$EVIDENCE_FILE"
+  if [ $rc -ne 0 ]; then status=1; echo "$out" | grep -E "^(E |FAILED|ERROR)" | head -15; fi
+}
 for suite in "${SUITES[@]}"; do
   dir="$PROJECTS_DIR/${suite%%|*}"; factory="${suite##*|}"
   [ -d "$dir" ] || { echo "skip $dir (not checked out)"; continue; }
   py="$(python_for "$dir")"
+  extra="$(state_env "$dir")"
   for profile in "${PROFILES[@]}"; do
-    out=$(cd "$dir" && E2A_PROVIDER_PROFILE="$profile" E2A_SWAP_FACTORIES="$factory" \
-          "$py" -m pytest -q -p e2a_managed.pytest_plugin -p no:cacheprovider 2>&1) && rc=0 || rc=$?
-    summary=$(echo "$out" | grep -E "passed|failed|error" | tail -1)
-    printf '%-32s %-50s %s\n' "$profile" "${suite%%|*}" "$summary"
-    if [ $rc -ne 0 ]; then status=1; echo "$out" | grep -E "^(E |FAILED|ERROR)" | head -15; fi
+    run_one "$dir" "$factory" "$profile" "in memory" ""
+    [ -n "$extra" ] && run_one "$dir" "$factory" "$profile" "emulator" "$extra"
   done
 done
 exit $status

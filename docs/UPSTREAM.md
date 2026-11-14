@@ -11,7 +11,7 @@ that knows a project becomes an example runner.
 | `codec.py` canonical conversation and tool-call shape | wire formats only | no | **E2A** (the canonical half); per-wire mappers stay here |
 | `managed_llm.ManagedLLMService` (retry ownership, typed refusal, per-call params) | no | no | **E2A** `BaseLLMAgentService` hooks |
 | `ManagedReranker` port | no | no | **E2A** `rag` (there is no reranker port today) |
-| `stores.ConditionalIdempotencyStore` / `ConditionalCheckpointStore` | no | no | **E2A** `ports` (one state machine over `_read` / `_write_if`) |
+| `stores` (claims and checkpoints) | – | – | **Done upstream:** `e2a-adapters` (E2A v1.5.0) implements the state machine once (`e2a_adapters.cas`) and for DynamoDB; this package now only binds those adapters from config |
 | `delegated.DelegatedRuntime` / `DelegatedAgent` | no | no | **E2A** `agents` |
 | `guardrails.ManagedGuardrailStage` | no | no | **E2A** `stages` |
 | `offline.py`, `swap.py`, `pytest_plugin.py` | wire fixtures | no | **E2A** testing extra (`e2a[testing]`) |
@@ -20,9 +20,9 @@ that knows a project becomes an example runner.
 | `examples/run_landscape.py`, `run_project_suites.sh` | – | yes | here (project-specific) |
 
 None of this needed a framework change to work: the current E2A v1.3.0 contracts
-were enough. One exception is `DelegatedAgent`, which overrides `_resolve_llm_service`.
-E2A's conformance check accepts it, but an explicit per-agent `llm_service` hook upstream
-would be cleaner.
+were enough. One exception is `DelegatedAgent`, which overrides `_resolve_llm_service`,
+a protected seam that is not a declared hook. E2A's conformance check accepts it, but it may
+change; per-agent configuration upstream (P3) replaces it.
 
 The upstream changes are deliberately not pushed to `e2a-framework` or `a2c-framework`
 from this work. They change shared contracts, so they should be a decision and a

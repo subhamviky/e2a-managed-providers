@@ -11,6 +11,9 @@ license = "MIT"
 dependencies = [
   # The E2A contracts this package implements. Pin the same tag the projects use.
   "e2a-framework @ git+https://github.com/subhamviky/e2a-framework.git@v1.5.0",
+  # E2A's store adapters (claims, checkpoints), released with E2A v1.5.0. Their cloud SDKs
+  # come with the provider extras below.
+  "e2a-adapters @ git+https://github.com/subhamviky/e2a-framework.git@v1.5.0#subdirectory=adapters",
   "pyyaml>=6.0",
   "httpx>=0.27",
 ]
@@ -18,15 +21,15 @@ dependencies = [
 # Each provider's SDKs are optional: a deployment installs only the profile it runs.
 [project.optional-dependencies]
 anthropic-aws = ["anthropic[bedrock,aws]>=2.0", "boto3>=1.40"]
-openai-azure = ["openai>=3.0", "azure-identity>=1.19"]
-google-vertex = ["google-genai>=3.0", "google-auth>=2.30"]
+openai-azure = ["openai>=3.0", "azure-identity>=1.19", "azure-cosmos>=4.7"]
+google-vertex = ["google-genai>=3.0", "google-auth>=2.30", "google-cloud-firestore>=2.16"]
 meta-llama = ["llama-stack-client>=0.7", "boto3>=1.40"]
 aws = ["boto3>=1.40"]
-azure = ["azure-identity>=1.19"]
-gcp = ["google-auth>=2.30"]
+azure = ["azure-identity>=1.19", "azure-cosmos>=4.7"]
+gcp = ["google-auth>=2.30", "google-cloud-firestore>=2.16"]
 otel = ["opentelemetry-sdk>=1.30", "opentelemetry-exporter-otlp>=1.30"]
 all = ["e2a-managed-providers[anthropic-aws,openai-azure,google-vertex,meta-llama,otel]"]
-dev = ["pytest>=8.2", "pytest-asyncio>=0.24", "respx>=0.21", "e2a-managed-providers[all]"]
+dev = ["pytest>=8.2", "pytest-asyncio>=0.24", "respx>=0.21", "moto[dynamodb]>=5.0", "e2a-managed-providers[all]"]
 
 [tool.setuptools.packages.find]
 include = ["e2a_managed*"]

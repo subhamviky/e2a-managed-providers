@@ -8,9 +8,11 @@ accounting. A provider adapter implements only _dispatch_upstream_call/_stream.
 This class narrows that further to four provider hooks, and settles three questions
 once for all providers:
 
-1. Who retries. The SDK's own retries default to 0 (`llm_sdk_max_retries`), so E2A's
-   ResiliencePolicy is the single retry/circuit authority. A double retry would multiply
-   load during an outage and hide failures from the circuit breaker.
+1. Who retries. Until E2A retries model calls itself (E2A v1.5.1, proposal P7), the
+   provider SDKs do: `llm_sdk_max_retries` defaults to 2, and the SDKs honour Retry-After.
+   E2A v1.5.0 calls the model with max_retries=0, so setting this to 0 today means NO layer
+   retries a 429 or a 503. Once E2A v1.5.1 is pinned, set it to 0: one retry authority,
+   which also keeps throttling from being hidden from E2A's classification.
 2. Per-call vendor parameters. Every vendor key is resolved with
    self._resolve_param(key, config, kwargs): a keyword passed to agent.run(...) or
    process_inference(...) wins over the profile and the environment for that call.

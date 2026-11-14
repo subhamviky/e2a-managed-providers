@@ -114,7 +114,8 @@ class AzureOpenAIEmbeddingModel(ManagedEmbeddingModel):
     def _build_client(self, config):
         from openai import OpenAI
         return OpenAI(base_url=azure_v1_base_url(resolve_config("azure_openai_endpoint", config)),
-                      api_key=azure_openai_credential(config, {}, async_=False), max_retries=0)
+                      api_key=azure_openai_credential(config, {}, async_=False),
+                      max_retries=int(resolve_config("llm_sdk_max_retries", config)))
 
     def _embed(self, texts: List[str]) -> List[List[float]]:
         args: Dict[str, Any] = {"model": self.model_id, "input": texts}

@@ -50,8 +50,9 @@ MANAGED_KEYS = [
               "bindings_from_profile() — which provider profile to bind (e.g. anthropic_bedrock)"),
     ConfigKey("managed_features", "E2A_MANAGED_FEATURES", [], _list, _COMMON,
               "Bindings.verify() — features the deployment requires; startup fails if a binding lacks one"),
-    ConfigKey("llm_sdk_max_retries", "LLM_SDK_MAX_RETRIES", 0, int, _COMMON,
-              "ManagedLLMService — SDK-level retries. 0: E2A's ResiliencePolicy owns retries (no double retry)"),
+    ConfigKey("llm_sdk_max_retries", "LLM_SDK_MAX_RETRIES", 2, int, _COMMON,
+              "Provider SDK retries (they honour Retry-After). 2 until E2A retries model calls itself "
+              "(E2A v1.5.1, P7); then set 0 so E2A's ResiliencePolicy is the only retry authority"),
     ConfigKey("llm_sdk_timeout", "LLM_SDK_TIMEOUT", 60.0, float, _COMMON,
               "ManagedLLMService — SDK HTTP timeout; the E2A deadline still bounds every call"),
     ConfigKey("reasoning_effort", "LLM_REASONING_EFFORT", None, str, _COMMON,

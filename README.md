@@ -78,7 +78,7 @@ e2a_managed/                     provider-neutral core (an upstream candidate fo
   guardrails.py                  ManagedGuardrailStage(IngressStage): fail-closed, typed FirewallRefusal
   delegated.py                   DelegatedRuntime + DelegatedAgent(BaseAgent): managed loops, read-only tools
   mcp_gateway.py                 ManagedMCPGatewayTool(MCPToolService)
-  stores.py                      one claim/checkpoint state machine over conditional writes
+  stores.py                      claim/checkpoint seams bound from config, on e2a-adapters (E2A v1.5)
   observability.py  iac.py  release.py                          BaseObservability / BaseInfraProvisioner / BasePipeline
   offline.py  swap.py  pytest_plugin.py                         offline wire replay through the real SDKs
   providers/
@@ -102,11 +102,25 @@ Everything below runs with no account (in CI on every push):
 
 | Check | Result |
 |---|---|
-| This package's tests: profiles, every LLM adapter through its **real SDK** (unary, streaming, tool round trip, structured output, per-call override, refusal and fallback, E2A DLP still applied), AWS services against AWS's own API models (botocore Stubber), DynamoDB on moto, Azure/GCP/Llama Stack REST shapes, the claim and checkpoint contract on DynamoDB, Cosmos DB and Firestore, delegated runtimes, IaC manifests, release gate, E2A conformance | 88 passed |
-| The three projects' **own** test suites, at their latest `main` (each in its own venv on the E2A release it pins: v1.4.0 or v1.5.0), with the model binding swapped to each of the 5 profiles (O2C 39, reconciliation 44, audit 23; emulator-only tests skipped) | 106 × 5 passed, no project file changed |
+| This package's tests: profiles, every LLM adapter through its **real SDK** (unary, streaming, tool round trip, structured output, per-call override, refusal and fallback, E2A DLP still applied), AWS services against AWS's own API models (botocore Stubber), Azure/GCP/Llama Stack REST shapes, the claim and checkpoint stores (e2a-adapters) against **E2A's own contract kit** (`e2a.port_contract`) on moto and, races included, on DynamoDB Local and the Firestore and Cosmos DB emulators, delegated runtimes, IaC manifests, release gate, E2A conformance | 88 passed (85 without the emulators) |
+| The three projects' **own** test suites, at their latest `main`, each in its own venv on the E2A release it pins (v1.4.0 or v1.5.0), with the model binding swapped to each of the 5 profiles; O2C and audit-ai a second time with their state on the Firestore and Cosmos DB emulators | O2C 43 + 43, reconciliation 44, audit-ai 23 + 26, on every profile; no project file changed. CI writes the full table to each run's summary (`EVIDENCE_FILE`). |
 | Landscape scenario per profile (`examples/run_landscape.py`): policy answer, payment exceptions, order placed, order paused for four-eyes approval, audit finding flagged and explained | all 5 profiles |
 | Java adapters (anthropic-java, openai-java, google-genai) against local wire replay | 5 passed |
-| Terraform `fmt` for every module (locally); `validate` + `test` with mock providers (CI) | fmt clean; CI runs the rest |
+| Terraform `fmt`, `validate` and `test` with mock providers, every module | AWS 3, GCP 2, Azure 2 tests pass (locally and in CI) |
+
+### Supported E2A versions
+
+| Part of this package | E2A |
+|---|---|
+| The model path: LLM adapters, codecs, the swap plugin, delegated runtimes | v1.4.0 and v1.5.0. Proven every run: reconciliation's venv is on v1.4.0 |
+| Everything, including the stores (they are e2a-adapters' Firestore and Cosmos DB adapters, new in v1.5.0) | v1.5.0 |
+
+### Retries until E2A retries model calls
+
+E2A v1.5.0 calls the model with `max_retries=0` (it never retries a model call). So the
+provider SDKs retry here: `llm_sdk_max_retries` defaults to 2, and the SDKs honour
+`Retry-After`. Once E2A retries model calls itself (planned for E2A v1.5.1), set it to 0:
+one retry authority. Setting 0 before then means no layer retries a 429 or a 503.
 
 Wire replay means the real provider SDK builds, signs (SigV4 for Bedrock) and parses the
 calls; only the HTTP endpoint is replaced by a responder backed by the projects' own rules.

@@ -24,7 +24,8 @@ class ResponsesAgentRuntime(DelegatedRuntime):
     def _build_client(self, config, kwargs):
         from openai import AsyncOpenAI
         return AsyncOpenAI(base_url=azure_v1_base_url(self._resolve_param("azure_openai_endpoint", config, kwargs)),
-                           api_key=azure_openai_credential(config, kwargs), max_retries=0)
+                           api_key=azure_openai_credential(config, kwargs),
+                           max_retries=int(self._resolve_param("llm_sdk_max_retries", config, kwargs)))
 
     def _model(self, config, kwargs) -> str:
         return self._resolve_param("delegated_runtime_id", config, kwargs) or \
