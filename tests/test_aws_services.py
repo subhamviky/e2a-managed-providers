@@ -48,11 +48,12 @@ def test_s3_vectors_upsert_search_and_tenant_filter():
         stub.add_response("query_vectors", {"vectors": [
             {"key": "pol.md#0", "distance": 0.1, "metadata": {"text": chunk["text"], "doc_id": "pol.md"}}],
             "distanceMetric": "cosine"},
-            {"vectorBucketName": "kb-e2a", "indexName": "e2a", "topK": 12, "queryVector": {"float32": [1.0, 0.0]},
+            {"vectorBucketName": "kb-e2a", "indexName": "e2a", "topK": 3, "queryVector": {"float32": [1.0, 0.0]},
              "filter": {"namespace": "rag_acme"}, "returnMetadata": True, "returnDistance": True})
         index.upsert("rag_acme", [chunk], [[1.0, 0.0]])
         hits = index.search("rag_acme", "when are refunds issued", [1.0, 0.0], 3)
-    assert hits[0]["chunk_id"] == "pol.md#0" and hits[0]["keyword"] >= 1
+    # vector-only (E2A 1.6.1 plan): no client-side keyword fusion; the reranker adds keyword relevance
+    assert hits == [{"chunk_id": "pol.md#0", "text": chunk["text"], "doc_id": "pol.md", "score": 0.9}]
 
 
 def test_bedrock_rerank_orders_by_relevance():
@@ -81,7 +82,7 @@ def test_rag_pipeline_passes_the_query_to_the_managed_reranker():
             return [1.0]
 
     class Reranker:
-        def rerank(self, query, hits, top_n):
+        def rerank(self, query, hits, top_n, config=None):      # E2A's BaseReranker
             self.query = query
             return hits[:top_n]
     rr = Reranker()

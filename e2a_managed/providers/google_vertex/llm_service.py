@@ -14,7 +14,7 @@ Mapping decisions
     per call (kwargs['cached_content']); Gemini also caches implicitly.
   * response_schema -> response_mime_type=application/json + response_json_schema.
   * temperature IS sent (Gemini still accepts sampling parameters).
-  * a SAFETY / PROHIBITED_CONTENT finish is a refusal (ModelRefusal or fallback model).
+  * a SAFETY / PROHIBITED_CONTENT finish is a refusal (ModelRefusal; E2A routes it to fallback_model_id).
 """
 from typing import Any, AsyncIterator, Dict, FrozenSet, List
 
@@ -41,6 +41,7 @@ class VertexGeminiLLMService(ManagedLLMService):
     platform = "vertex_ai"
     capabilities: FrozenSet[str] = frozenset({C.TOOL_USE, C.STRUCTURED_OUTPUT, C.STREAMING, C.PROMPT_CACHING,
                                               C.REASONING_EFFORT, C.REFUSAL_FALLBACK})
+    features = {"structured_output": "native", "sampling": "supported", "reasoning": "thinking"}   # E2A v1.6.1
 
     def _build_client(self, config, kwargs):
         from google.genai import types
@@ -63,7 +64,7 @@ class VertexGeminiLLMService(ManagedLLMService):
             cfg["tools"] = tools_to_gemini(tools)
         if stop_sequences:
             cfg["stop_sequences"] = stop_sequences
-        effort = self._param("reasoning_effort", config, kwargs)
+        effort = self._effort(self._param("reasoning_effort", config, kwargs))
         if effort:
             cfg["thinking_config"] = ({"thinking_budget": _BUDGET.get(effort, 8192)} if model_id.startswith("gemini-2")
                                       else {"thinking_level": effort.upper() if effort != "max" else "XHIGH"})

@@ -16,8 +16,12 @@ once for all providers:
    self._resolve_param(key, config, kwargs): a keyword passed to agent.run(...) or
    process_inference(...) wins over the profile and the environment for that call.
 3. Refusals. A provider decline is E2A's typed ModelRefusal (status REFUSED, routed to the
-   agent's _fallback), retried once on `fallback_model_id` when one is configured; never
-   treated as an answer.
+   agent's _fallback). Answering it with another model is E2A's (v1.6.1 `model_routes`): a
+   configured `fallback_model_id` becomes the route [{on: [refusal], to: <id>}] when the
+   deployment sets no model_routes of its own. No adapter retries a refusal itself.
+4. Features (E2A v1.6.1). Each adapter declares `features`: whether it has native structured
+   output, accepts sampling parameters, and how it reasons. E2A drops or refuses what the
+   model cannot take, before the request is built; the adapter maps the rest.
 
 Subclasses implement:
     _build_client(config, kwargs)                     -> SDK client (never at import time)
@@ -29,7 +33,7 @@ Subclasses implement:
 import abc
 from typing import Any, AsyncIterator, Dict, FrozenSet, List, Optional
 
-from e2a import BaseLLMAgentService
+from e2a import BaseLLMAgentService, resolve_config
 from e2a import ModelRefusal as _E2AModelRefusal
 
 from . import config_keys  # noqa: F401
@@ -44,10 +48,14 @@ class ManagedLLMService(BaseLLMAgentService):
     provider: str = "abstract"
     platform: str = ""
     capabilities: FrozenSet[str] = frozenset()
+    features: Dict[str, str] = {}
 
     def __init__(self, config: Optional[Dict[str, Any]] = None, client: Any = None, **kwargs: Any) -> None:
         super().__init__(config, **kwargs)
         self._client = client               # injected in tests / offline runners; else built lazily
+        fallback = resolve_config("fallback_model_id", self._config)
+        if fallback and not resolve_config("model_routes", self._config):
+            self._config = {**self._config, "model_routes": [{"on": ["refusal"], "to": fallback}]}
 
     # ------------------------------------------------------------ provider hooks
     @abc.abstractmethod
@@ -90,6 +98,11 @@ class ManagedLLMService(BaseLLMAgentService):
         """A vendor parameter: call-time kwargs > profile config > env > default."""
         return self._resolve_param(key, config, kwargs)
 
+    def _effort(self, effort: Optional[str]) -> Optional[str]:
+        """Hook: E2A's reasoning_effort (minimal | low | medium | high | max) in the provider's
+        vocabulary. Default: unchanged."""
+        return effort
+
     async def _dispatch_upstream_call(self, messages, model_id, temperature, max_tokens,
                                       tools, stop_sequences, cache_handle, config, **kwargs) -> Dict[str, Any]:
         client = self._sdk_client(config, kwargs)
@@ -97,15 +110,7 @@ class ManagedLLMService(BaseLLMAgentService):
                                       list(stop_sequences or []), cache_handle, config, kwargs)
         out = self._parse(await self._send(client, request))
         if (out.get("metadata") or {}).get("stop_reason") == "refusal":
-            fallback = self._param("fallback_model_id", config, kwargs)
-            if not fallback or fallback == model_id:
-                raise ModelRefusal(self.provider, model_id, out.get("text", ""))
-            retry = self._build_request(messages, fallback, temperature, max_tokens, tools,
-                                        list(stop_sequences or []), cache_handle, config, kwargs)
-            out = self._parse(await self._send(client, retry))
-            if (out.get("metadata") or {}).get("stop_reason") == "refusal":
-                raise ModelRefusal(self.provider, fallback, out.get("text", ""))
-            out["metadata"]["fallback_from"] = model_id
+            raise ModelRefusal(self.provider, model_id, out.get("text", ""))
         return out
 
     async def _dispatch_upstream_stream(self, messages, model_id, temperature, max_tokens, config, **kwargs):

@@ -115,7 +115,7 @@ class AzureSemanticRanker(ManagedReranker):
     def _build_client(self, config):
         return None
 
-    def rerank(self, query, hits, top_n):
+    def rerank(self, query, hits, top_n, config=None):
         return sorted(hits, key=lambda h: -(h.get("rerank_score") or h.get("score") or 0.0))[:int(top_n)]
 
 
@@ -126,7 +126,7 @@ class AzureContentSafetyStage(_AzureRest, ManagedGuardrailStage):
     name = "azure_content_safety"
     severity_threshold = 4
 
-    def __init__(self, config=None, client=None, transport=None, fail_open=False):
+    def __init__(self, config=None, client=None, transport=None, fail_open=None):
         _AzureRest.__init__(self, config, transport)
         ManagedGuardrailStage.__init__(self, config, client, fail_open)
 
@@ -157,8 +157,8 @@ class AzureContentSafetyStage(_AzureRest, ManagedGuardrailStage):
 
 # ------------------------------------------------------------------------ APIM as MCP gateway
 class APIMGatewayTool(ManagedMCPGatewayTool):
-    def _auth_headers(self, endpoint, config, kwargs):
-        key = resolve_config("azure_apim_subscription_key", config, kwargs)
+    def _auth_headers(self, endpoint, config=None, **kwargs):
+        key = resolve_config("azure_apim_subscription_key", self._cfg(config), kwargs)
         return {"Ocp-Apim-Subscription-Key": key} if key else {}
 
 

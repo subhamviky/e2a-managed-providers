@@ -12,6 +12,9 @@ it (BaseAgent.run(), process_inference(), retrieve(), execute() ...), and that v
 wins over the profile and the environment for that one call.
 
 Keys are registered when this module is imported (e2a_managed/__init__ imports it).
+
+Keys E2A owns are not registered here: provider_profile (E2A 1.6.0), reasoning_effort,
+guardrail_fields and delegated_max_turns (E2A 1.6.1).
 """
 import json
 from typing import Any, List
@@ -46,17 +49,13 @@ _META = "Managed providers — Meta Llama Stack"
 
 MANAGED_KEYS = [
     # ---- common: profile selection and who owns which runtime concern
-    ConfigKey("provider_profile", "E2A_PROVIDER_PROFILE", None, str, _COMMON,
-              "bindings_from_profile() — which provider profile to bind (e.g. anthropic_bedrock)"),
     ConfigKey("llm_sdk_max_retries", "LLM_SDK_MAX_RETRIES", 0, int, _COMMON,
               "Provider SDK retries. 0: E2A (v1.5.1+) retries model calls by error class, honouring "
               "Retry-After within the deadline, so it is the only retry authority (no double retry)"),
     ConfigKey("llm_sdk_timeout", "LLM_SDK_TIMEOUT", 60.0, float, _COMMON,
               "ManagedLLMService — SDK HTTP timeout; the E2A deadline still bounds every call"),
-    ConfigKey("reasoning_effort", "LLM_REASONING_EFFORT", None, str, _COMMON,
-              "ManagedLLMService — provider reasoning depth (low|medium|high...), mapped per provider"),
     ConfigKey("fallback_model_id", "LLM_FALLBACK_MODEL_ID", None, str, _COMMON,
-              "ManagedLLMService — model retried once when the primary model declines (refusal)"),
+              "ManagedLLMService — the model a refusal is routed to: becomes E2A's model_routes [{on: [refusal], to: <id>}] when model_routes is not set (E2A 1.6.1)"),
     ConfigKey("mcp_servers", "MCP_SERVERS", [], _list, _COMMON,
               "provider MCP connector — [{name, url, token_env}] remote MCP servers the model may call"),
     ConfigKey("embedding_model_id", "EMBEDDING_MODEL_ID", None, str, _COMMON,
@@ -67,14 +66,10 @@ MANAGED_KEYS = [
               "Managed vector indexes — index / collection name (the tenant namespace is added)"),
     ConfigKey("rerank_model_id", "RERANK_MODEL_ID", None, str, _COMMON,
               "Managed rerankers — provider rerank model"),
-    ConfigKey("guardrail_fields", "GUARDRAIL_FIELDS", ["query"], _list, _COMMON,
-              "ManagedGuardrailStage — state fields screened by the provider guardrail"),
     ConfigKey("delegated_runtime_id", "DELEGATED_RUNTIME_ID", None, str, _COMMON,
               "Delegated runtimes — managed agent id / runtime ARN / engine resource"),
     ConfigKey("delegated_runtime_environment", "DELEGATED_RUNTIME_ENVIRONMENT", None, str, _COMMON,
               "Delegated runtimes — environment / endpoint qualifier"),
-    ConfigKey("delegated_max_turns", "DELEGATED_MAX_TURNS", 8, int, _COMMON,
-              "Delegated runtimes — host-side tool round trips before the run is stopped"),
     ConfigKey("otel_service_name", "OTEL_SERVICE_NAME", "e2a-service", str, _COMMON,
               "ManagedObservability — service.name resource attribute"),
     ConfigKey("otlp_endpoint", "OTEL_EXPORTER_OTLP_ENDPOINT", None, str, _COMMON,

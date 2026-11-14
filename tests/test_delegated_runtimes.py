@@ -3,9 +3,9 @@ import json
 from types import SimpleNamespace
 
 import pytest
-from e2a import BaseToolService
+from e2a import BaseAgent, BaseToolService
 
-from e2a_managed.delegated import DelegatedAgent, MaterialToolRefused
+from e2a_managed.delegated import MaterialToolRefused
 from e2a_managed.offline import ReplayTransport, offline_client
 from e2a_managed.providers.anthropic_aws.delegated_runtime import ClaudeManagedAgentsRuntime
 from e2a_managed.providers.openai_azure.delegated_runtime import ResponsesAgentRuntime
@@ -65,7 +65,7 @@ async def test_runtime_tool_budget_is_enforced():
     runtime = ResponsesAgentRuntime({"delegated_runtime_id": "gpt-5", "delegated_max_turns": 2},
                                     client=offline_client("openai", rt), tools={"get_order": (ReadOrder(), SCHEMA)})
     out = await runtime.process_inference([{"role": "user", "content": "loop"}], tenant_id="acme")
-    assert out["status"] == "FAILED" and "round trips" in out["error"]
+    assert out["status"] == "FAILED" and out["error_type"] == "DelegatedTurnLimit"
 
 
 class FakeSessions:
@@ -123,8 +123,9 @@ async def test_claude_managed_agents_runtime_round_trip():
     assert tool.calls == [("acme", {"order_id": "ORD-9"})]
 
 
-def test_delegated_agent_runs_the_full_e2a_lifecycle():
-    class Advisor(DelegatedAgent):
+def test_a_scope_binds_the_runtime_to_one_agent_and_the_full_lifecycle_runs():
+    """E2A v1.6.1 scopes replace DelegatedAgent: the runtime is this agent's llm_service only."""
+    class Advisor(BaseAgent):
         agent_name = "Advisor"
 
         def _build_messages(self, state, ctx):
@@ -146,5 +147,6 @@ def test_delegated_agent_runs_the_full_e2a_lifecycle():
     rt = ReplayTransport("openai_responses", responder)
     runtime = ResponsesAgentRuntime({"delegated_runtime_id": "gpt-5"}, client=offline_client("openai", rt),
                                     tools={"get_order": (ReadOrder(), SCHEMA)})
-    state = Advisor(runtime).run({"query": "Where is ORD-1?"}, {}, tenant_id="acme")    # no llm_service in config
+    config = {"llm_service": object(), "scopes": {"agent:Advisor": {"llm_service": runtime}}}
+    state = Advisor().run({"query": "Where is ORD-1?"}, config, tenant_id="acme")
     assert state["evaluation"] == "ACCEPTED" and state["response"]["text"] == "It is SHIPPED."

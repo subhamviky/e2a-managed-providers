@@ -35,9 +35,10 @@
   fresh store (blue/green). `delete()` raises instead of silently keeping stale chunks.
 * **No managed prompt registry is bound for Azure or GCP** (none is stable enough to bind).
   Prompts stay in code or in E2A's `BasePromptRegistry` with your own store.
-* **S3 Vectors is vector-only.** The keyword leg of E2A's hybrid contract is computed over
-  an over-fetched candidate set (reciprocal rank fusion). OpenSearch Serverless would give
-  native hybrid at higher cost.
+* **S3 Vectors is vector-only, and so is `S3VectorsIndex`** (it declares `vector_search`, not
+  `hybrid_search`). Keyword relevance comes from the bound reranker (Bedrock Rerank on E2A's
+  `BaseReranker`), not from a client-side fusion, which was removed with E2A v1.6.1.
+  OpenSearch Serverless would give native hybrid at higher cost.
 
 ## Design tensions
 
@@ -45,9 +46,6 @@
   repository makes E2A the single owner of each (docs/ARCHITECTURE.md): since E2A v1.5.1 that
   includes model-call retries (the SDKs' own are 0). Teams must keep E2A quotas below
   provider quotas, or they will see provider 429s instead of E2A's typed admission refusals.
-* **`DelegatedAgent` overrides a protected seam** (`_resolve_llm_service`), not a declared
-  E2A hook. Conformance accepts it, but it may change; per-agent configuration in E2A
-  (proposal P3) is the intended replacement.
 * **Managed agent runtimes vs E2A's guarantees.** Solved by binding them as the model step
   with read-only tools. Workflows that need the runtime to *act* (place orders) are
   deliberately not supported.

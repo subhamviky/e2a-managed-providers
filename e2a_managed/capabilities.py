@@ -19,6 +19,7 @@ class Capability(str, Enum):
     PROMPT_CACHING = "prompt_caching"
     REASONING_EFFORT = "reasoning_effort"
     REFUSAL_FALLBACK = "refusal_fallback"
+    REFUSAL_FALLBACK_SERVER = "refusal_fallback_server"   # the provider falls back itself: E2A takes no route
     MCP_CONNECTOR = "mcp_connector"            # the provider's servers call remote MCP servers
     SERVER_WEB_SEARCH = "server_web_search"
     BATCH = "batch"

@@ -27,7 +27,7 @@ from ...capabilities import Capability as C
 from ...codec import result
 from ...delegated import DelegatedRuntime
 from ...guardrails import ManagedGuardrailStage, Verdict
-from ...managed_rag import (ManagedEmbeddingModel, ManagedReranker, ManagedVectorIndex, content_words,
+from ...managed_rag import (ManagedEmbeddingModel, ManagedReranker, ManagedVectorIndex,
                             lexical_groundedness)
 from ...mcp_gateway import BearerGatewayTool
 
@@ -64,9 +64,9 @@ class TitanEmbeddingModel(ManagedEmbeddingModel):
 class S3VectorsIndex(ManagedVectorIndex):
     """One S3 Vectors index; tenants are separated by a `namespace` metadata filter
     (POOL tenancy). SILO tenancy = one index per tenant, set via vector_index_name.
-    S3 Vectors is vector-only, so the keyword leg E2A's hybrid contract asks for is
-    computed over an over-fetched candidate set and fused with reciprocal rank fusion."""
-    RRF_K, OVERFETCH = 60, 4
+    S3 Vectors is vector-only, and so is this index: it declares vector_search, not
+    hybrid_search. Keyword relevance is the reranker's job (BedrockReranker on E2A's
+    BaseReranker port; the AWS profiles recommend `rerank`), not a client-side fusion here."""
 
     def _build_client(self, config):
         return _boto("s3vectors", config)
@@ -99,22 +99,12 @@ class S3VectorsIndex(ManagedVectorIndex):
 
     def search(self, namespace, query_text, query_vector, top_k):
         resp = self.client.query_vectors(vectorBucketName=self.bucket, indexName=self.index_name,
-                                         topK=int(top_k) * self.OVERFETCH,
-                                         queryVector={"float32": [float(x) for x in query_vector]},
+                                         topK=int(top_k), queryVector={"float32": [float(x) for x in query_vector]},
                                          filter={"namespace": namespace}, returnMetadata=True, returnDistance=True)
-        hits = resp.get("vectors", [])
-        terms = content_words(query_text)
-        if not hits or not terms:
-            return []
-        lexical = {h["key"]: len(terms & content_words(h["metadata"].get("text", ""))) for h in hits}
-        rank_v = {h["key"]: i for i, h in enumerate(hits, 1)}                     # by distance
-        rank_k = {k: i for i, k in enumerate(sorted(lexical, key=lambda k: -lexical[k]), 1)}
-        out = [{"chunk_id": h["key"], "text": h["metadata"].get("text", ""),
-                **{k: v for k, v in h["metadata"].items() if k not in ("text", "namespace")},
-                "score": 1 / (self.RRF_K + rank_k[h["key"]]) + 1 / (self.RRF_K + rank_v[h["key"]]),
-                "vector": round(1 - float(h.get("distance", 0.0)), 4), "keyword": lexical[h["key"]]}
-               for h in hits if lexical[h["key"]] > 0]                         # no shared term, no evidence
-        return sorted(out, key=lambda r: -r["score"])[:top_k]
+        return [{"chunk_id": h["key"], "text": h["metadata"].get("text", ""),
+                 **{k: v for k, v in h["metadata"].items() if k not in ("text", "namespace")},
+                 "score": round(1 - float(h.get("distance", 0.0)), 4)}
+                for h in resp.get("vectors", [])]
 
 
 # ------------------------------------------------------------------------ rerank
@@ -124,7 +114,7 @@ class BedrockReranker(ManagedReranker):
     def _build_client(self, config):
         return _boto("bedrock-agent-runtime", config)
 
-    def rerank(self, query, hits, top_n):
+    def rerank(self, query, hits, top_n, config=None):
         if not hits:
             return []
         region = resolve_config("aws_region", self.config)
@@ -270,7 +260,7 @@ class AgentCoreRuntime(DelegatedRuntime):
     def _build_client(self, config, kwargs):
         return _boto("bedrock-agentcore", config)
 
-    async def _run_session(self, messages, config, tenant_id, kwargs):
+    async def _run_session(self, messages, config, tenant_id, session, kwargs):
         import asyncio
         cfg = {**self._config, **(config or {})}
         client = self._client_for(cfg, kwargs)

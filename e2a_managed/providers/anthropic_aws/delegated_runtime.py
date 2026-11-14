@@ -30,37 +30,35 @@ class ClaudeManagedAgentsRuntime(DelegatedRuntime):
                                  workspace_id=self._resolve_param("anthropic_aws_workspace_id", config, kwargs),
                                  max_retries=int(self._resolve_param("llm_sdk_max_retries", config, kwargs)))
 
-    async def _run_session(self, messages: List[Dict[str, Any]], config, tenant_id, kwargs) -> Dict[str, Any]:
+    async def _run_session(self, messages: List[Dict[str, Any]], config, tenant_id, session, kwargs) -> Dict[str, Any]:
         cfg = {**self._config, **(config or {})}
         client = self._client_for(cfg, kwargs)
         system, rest = split_system(messages)
         prompt = "\n\n".join(([f"Context from the operator:\n{system}"] if system else []) +
                              [str(m.get("content", "")) for m in rest if m.get("role") == "user"])
-        session = await client.beta.sessions.create(
+        managed = await client.beta.sessions.create(
             agent=self._resolve_param("delegated_runtime_id", cfg, kwargs),
             environment_id=self._resolve_param("delegated_runtime_environment", cfg, kwargs),
             title=f"e2a {tenant_id} {kwargs.get('correlation_id', '')}".strip(),
             metadata={"tenant_id": str(tenant_id), "correlation_id": str(kwargs.get("correlation_id", ""))})
-        max_turns = int(self._resolve_param("delegated_max_turns", cfg, kwargs))
         texts: List[str] = []
-        turns, usage_in, usage_out, stop = 0, 0, 0, "end_turn"
-        async with client.beta.sessions.events.stream(session_id=session.id) as stream:      # stream first
-            await client.beta.sessions.events.send(session_id=session.id, events=[
+        usage_in, usage_out, stop = 0, 0, "end_turn"
+        async with client.beta.sessions.events.stream(session_id=managed.id) as stream:      # stream first
+            await client.beta.sessions.events.send(session_id=managed.id, events=[
                 {"type": "user.message", "content": [{"type": "text", "text": prompt}]}])
             async for event in stream:
                 kind = event.type
                 if kind == "agent.message":
                     texts += [b.text for b in event.content if getattr(b, "type", "") == "text"]
                 elif kind == "agent.custom_tool_use":
-                    turns += 1
-                    output = (await self._run_tool(event.name, dict(event.input or {}), tenant_id, cfg)
-                              if turns <= max_turns else '{"error": "tool budget for this request exhausted"}')
-                    await client.beta.sessions.events.send(session_id=session.id, events=[{
+                    # E2A counts the round trip against delegated_max_turns (DelegatedTurnLimit)
+                    output = await self.run_tool(event.name, dict(event.input or {}), tenant_id, cfg, session)
+                    await client.beta.sessions.events.send(session_id=managed.id, events=[{
                         "type": "user.custom_tool_result", "custom_tool_use_id": event.id,
                         "content": [{"type": "text", "text": output}]}])
                 elif kind in ("agent.tool_use", "agent.mcp_tool_use") and \
                         getattr(event, "evaluated_permission", None) == "ask":
-                    await client.beta.sessions.events.send(session_id=session.id, events=[{
+                    await client.beta.sessions.events.send(session_id=managed.id, events=[{
                         "type": "user.tool_confirmation", "tool_use_id": event.id, "result": "deny"}])
                 elif kind == "span.model_request_end":
                     usage = getattr(event, "model_usage", None) or getattr(event, "usage", None)
@@ -75,4 +73,4 @@ class ClaudeManagedAgentsRuntime(DelegatedRuntime):
                     stop = "error"
                     break
         return result("\n".join(t for t in texts if t), input_tokens=usage_in, output_tokens=usage_out,
-                      stop_reason=stop, request_id=session.id)
+                      stop_reason=stop, request_id=managed.id)

@@ -39,6 +39,8 @@ class LlamaStackLLMService(ManagedLLMService):
     provider = "meta"
     platform = "llama_stack"
     capabilities: FrozenSet[str] = frozenset({C.TOOL_USE, C.STRUCTURED_OUTPUT, C.STREAMING, C.REFUSAL_FALLBACK})
+    # E2A v1.6.1: no reasoning control, so E2A drops reasoning_effort before the request
+    features = {"structured_output": "native", "sampling": "supported", "reasoning": "none"}
 
     def _build_client(self, config, kwargs):
         return llama_client(config, kwargs, async_=True, **self._sdk_options(config, kwargs))
