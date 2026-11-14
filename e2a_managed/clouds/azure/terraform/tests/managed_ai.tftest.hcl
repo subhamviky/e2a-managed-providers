@@ -18,7 +18,7 @@ run "keys_are_disabled_everywhere" {
 run "semantic_ranker_and_state_containers" {
   command = plan
   assert {
-    condition     = azurerm_search_service.this.semantic_search_sku == "standard" && length(azurerm_cosmosdb_sql_container.state) == 2
+    condition     = azurerm_search_service.this.semantic_search_sku == "standard" && length(azurerm_cosmosdb_sql_container.state) == 1
     error_message = "hybrid+semantic search and both E2A containers are required"
   }
 }

@@ -1,6 +1,9 @@
 name: meta_llama_aws
 provider: meta
 cloud: aws
+# E2A 1.7: the cloud infrastructure (stores, broker, secrets, identity claims) comes from
+# e2a-adapters' "aws" profile; this profile adds the AI services and overrides what it must
+extends: aws
 description: >
   Meta Llama through a Llama Stack distribution on AWS (ECS), with Llama models on
   Amazon Bedrock as the inference provider, Llama Guard shields, pgvector behind
@@ -18,8 +21,6 @@ bindings:
   prompt_registry: e2a_managed.providers.meta_llama.llm_service:LlamaStackPromptRegistry
   delegated_runtime: e2a_managed.providers.meta_llama.llm_service:LlamaStackResponsesRuntime
   observability_engine: e2a_managed.clouds.aws.substrate:AWSObservability
-  idempotency_store: e2a_managed.clouds.aws.substrate:DynamoDBIdempotencyStore
-  checkpoint_store: e2a_managed.clouds.aws.substrate:DynamoDBCheckpointStore
   infra_provisioner: e2a_managed.providers.meta_llama.infra:LlamaStackAWSInfraProvisioner
   release_pipeline: e2a_managed.clouds.aws.substrate:AWSReleasePipeline
 config:
@@ -29,13 +30,10 @@ config:
   llama_stack_url: ${LLAMA_STACK_URL:-http://llama-stack.internal:8321}
   llama_stack_api_key: ${LLAMA_STACK_API_KEY}
   llama_shield_id: ${LLAMA_SHIELD_ID:-llama-guard}
-  aws_region: ${AWS_REGION:-us-east-1}
   llm_max_latency: ${LLM_MAX_LATENCY:-60}
   context_budget: ${LLM_CONTEXT_BUDGET:-120000}
   max_output_tokens: ${LLM_MAX_OUTPUT_TOKENS:-4096}
   embedding_model_id: ${EMBEDDING_MODEL_ID:-amazon.titan-embed-text-v2:0}
   vector_index_name: ${VECTOR_INDEX_NAME:-e2a-knowledge}
   delegated_runtime_id: ${DELEGATED_RUNTIME_ID}      # model the Responses agent runs on
-  dynamodb_idempotency_table: ${DYNAMODB_IDEMPOTENCY_TABLE:-e2a-idempotency}
-  dynamodb_checkpoint_table: ${DYNAMODB_CHECKPOINT_TABLE:-e2a-checkpoints}
   otel_service_name: ${OTEL_SERVICE_NAME:-e2a-service}

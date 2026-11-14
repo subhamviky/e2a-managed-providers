@@ -1,6 +1,9 @@
 name: openai_azure
 provider: openai
 cloud: azure
+# E2A 1.7: the cloud infrastructure (stores, broker, secrets, identity claims) comes from
+# e2a-adapters' "azure" profile; this profile adds the AI services and overrides what it must
+extends: azure
 description: >
   OpenAI models on Azure AI Foundry (Azure OpenAI v1 API, Responses API, Entra ID auth)
   with Azure AI Search (native hybrid + semantic ranker), Azure AI Content Safety
@@ -20,8 +23,6 @@ bindings:
   guardrail_stage: e2a_managed.clouds.azure.services:AzureContentSafetyStage
   mcp_gateway_tool: e2a_managed.clouds.azure.services:APIMGatewayTool
   observability_engine: e2a_managed.clouds.azure.services:AzureObservability
-  idempotency_store: e2a_managed.clouds.azure.services:CosmosIdempotencyStore
-  checkpoint_store: e2a_managed.clouds.azure.services:CosmosCheckpointStore
   infra_provisioner: e2a_managed.clouds.azure.services:AzureInfraProvisioner
   release_pipeline: e2a_managed.clouds.azure.services:AzureReleasePipeline
 config:
@@ -45,6 +46,4 @@ config:
   azure_content_safety_key: ${AZURE_CONTENT_SAFETY_KEY}
   mcp_server_url: ${APIM_MCP_URL}
   delegated_runtime_id: ${DELEGATED_RUNTIME_ID}         # deployment the delegated agent runs on
-  cosmos_endpoint: ${COSMOS_ENDPOINT}
-  cosmos_database: ${COSMOS_DATABASE:-e2a}
   otel_service_name: ${OTEL_SERVICE_NAME:-e2a-service}

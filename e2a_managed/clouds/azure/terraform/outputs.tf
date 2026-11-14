@@ -18,3 +18,11 @@ output "APPLICATIONINSIGHTS_CONNECTION_STRING" {
   value     = azurerm_application_insights.this.connection_string
   sensitive = true
 }
+
+output "COSMOS_DATABASE" {
+  value = azurerm_cosmosdb_sql_database.e2a.name
+}
+
+output "COSMOS_CONTAINER" {
+  value = azurerm_cosmosdb_sql_container.state["e2a"].name
+}

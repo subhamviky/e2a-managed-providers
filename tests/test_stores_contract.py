@@ -1,14 +1,12 @@
-"""The claim and checkpoint stores every profile binds, tested with E2A's own contract kit.
+"""The infrastructure every provider profile binds comes from e2a-adapters' cloud profiles
+(E2A 1.7): the stores, broker, secret store and identity claims. Tested here through the
+provider profiles themselves, with E2A's contract kit:
 
-The stores are e2a-adapters' (E2A v1.5.0), bound from this package's configuration. The
-suites are `e2a.port_contract`, the same behavioural definition every E2A adapter must meet:
-
-* DynamoDB on moto, always, without the concurrent races: moto's in-process backend is not
-  atomic under threads;
-* the whole kit, races included, on DynamoDB Local, the Firestore emulator and the Cosmos DB
-  emulator, when DYNAMODB_LOCAL_ENDPOINT, FIRESTORE_EMULATOR_HOST and COSMOS_EMULATOR_ENDPOINT
-  are set (CI starts all three). Hand-written fakes are not used: they never return what the
-  real services return under contention (Firestore's ABORTED, for one).
+* every profile extends its cloud profile and binds e2a-adapters' classes, offline;
+* DynamoDB on moto, always (without the concurrent races: moto's backend is not atomic);
+* the whole kit, races included, on DynamoDB Local and the Firestore and Cosmos DB emulators
+  when DYNAMODB_LOCAL_ENDPOINT, FIRESTORE_EMULATOR_HOST and COSMOS_EMULATOR_ENDPOINT are set.
+The adapters' own suites (e2a-adapters) cover the brokers and the secret stores.
 """
 import os
 import uuid
@@ -17,18 +15,18 @@ import boto3
 import pytest
 from moto import mock_aws
 
+from e2a import bindings_from_profile
 from e2a.port_contract import check_checkpoint_store, check_idempotency_store
-from e2a_managed.clouds.aws.substrate import DynamoDBCheckpointStore, DynamoDBIdempotencyStore
-from e2a_managed.clouds.azure.services import CosmosCheckpointStore, CosmosIdempotencyStore
-from e2a_managed.clouds.gcp.services import FirestoreCheckpointStore, FirestoreIdempotencyStore
 
-# The Cosmos DB emulator's published, well-known key (not a secret).
+from .conftest import PROFILES
+
 COSMOS_EMULATOR_KEY = "C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw=="
-ALL_STORES = (DynamoDBIdempotencyStore, DynamoDBCheckpointStore, CosmosIdempotencyStore, CosmosCheckpointStore,
-              FirestoreIdempotencyStore, FirestoreCheckpointStore)
+CLOUD_OF = {"anthropic_bedrock": "aws", "anthropic_claude_platform_aws": "aws", "meta_llama_aws": "aws",
+            "google_vertex": "gcp", "openai_azure": "azure"}
+BROKER_OF = {"aws": "SQSBroker", "gcp": "PubSubBroker", "azure": "ServiceBusBroker"}
 
 
-def _dynamodb_tables(client, *names):
+def _tables(client, *names):
     for name in names:
         client.create_table(TableName=name, BillingMode="PAY_PER_REQUEST",       # as terraform/main.tf
                             KeySchema=[{"AttributeName": "pk", "KeyType": "HASH"},
@@ -37,85 +35,87 @@ def _dynamodb_tables(client, *names):
                                                   {"AttributeName": "sk", "AttributeType": "S"}])
 
 
-# ------------------------------------------------------------------ binding
-@pytest.mark.parametrize("store_class", ALL_STORES)
-def test_a_store_binds_from_config_without_credentials_or_network(store_class):
-    """Bindings.verify() builds every seam: a store must not reach its cloud until first use."""
-    store = store_class({"cosmos_endpoint": "https://unused.example", "gcp_project": "unused"})
-    assert store.capabilities and store._built is None
+@pytest.mark.parametrize("profile", PROFILES)
+def test_every_profile_takes_its_infrastructure_from_the_cloud_profile(profile):
+    b = bindings_from_profile(profile, verify=True)
+    config = b.config()
+    cloud = CLOUD_OF[profile]
+    assert b.profile.cloud == cloud
+    for seam in ("idempotency_store", "checkpoint_store", "transactional_store", "lease", "message_broker",
+                 "credential_provider", "identity_resolver"):
+        assert type(config[seam]).__module__.startswith(("e2a_adapters.", "e2a.identity")), (seam, config[seam])
+    assert type(config["message_broker"]).__name__ == BROKER_OF[cloud]
+    assert config["profile_settings"]["identity_claim_map"] == bindings_from_profile(cloud).profile.config["identity_claim_map"]
 
 
-# ------------------------------------------------------------------ DynamoDB on moto
 @pytest.fixture
-def moto_dynamodb(monkeypatch):
+def aws_env(monkeypatch):
     for key, value in (("AWS_ACCESS_KEY_ID", "testing"), ("AWS_SECRET_ACCESS_KEY", "testing"),
                        ("AWS_DEFAULT_REGION", "us-east-1")):
         monkeypatch.setenv(key, value)
+
+
+def test_the_bound_dynamodb_stores_meet_the_contract_on_moto(aws_env):
+    with mock_aws():
+        _tables(boto3.client("dynamodb", region_name="us-east-1"), "e2a-idempotency", "e2a-checkpoints")
+        b = bindings_from_profile("anthropic_bedrock")
+        store, checkpoints = type(b.idempotency_store), type(b.checkpoint_store)
+        cfg = b.config()
+        assert len(check_idempotency_store(lambda c: store.from_config(cfg, clock=c), race=1)) == 23
+        assert len(check_checkpoint_store(lambda c: checkpoints.from_config(cfg, clock=c), race=1)) == 7
+
+
+def test_the_configured_table_name_is_used(aws_env, monkeypatch):
+    monkeypatch.setenv("DYNAMODB_IDEMPOTENCY_TABLE", "claims-prod")
     with mock_aws():
         client = boto3.client("dynamodb", region_name="us-east-1")
-        _dynamodb_tables(client, "e2a-idempotency", "e2a-checkpoints")
-        yield client
+        _tables(client, "claims-prod")
+        store = bindings_from_profile("meta_llama_aws").idempotency_store
+        claim = store.claim("k", tenant_id="acme")
+        assert store.complete("k", {"ok": True}, tenant_id="acme", owner=claim.owner)
+        assert client.scan(TableName="claims-prod")["Count"] == 1
 
 
-def test_dynamodb_claims_meet_the_contract_on_moto(moto_dynamodb):
-    passed = check_idempotency_store(lambda clock: DynamoDBIdempotencyStore({}, client=moto_dynamodb, clock=clock),
-                                     race=1)
-    assert len(passed) == 23
-
-
-def test_dynamodb_checkpoints_meet_the_contract_on_moto(moto_dynamodb):
-    passed = check_checkpoint_store(lambda clock: DynamoDBCheckpointStore({}, client=moto_dynamodb, clock=clock),
-                                    race=1)
-    assert len(passed) == 7
-
-
-def test_the_configured_table_names_are_used(moto_dynamodb):
-    _dynamodb_tables(moto_dynamodb, "claims-prod")
-    store = DynamoDBIdempotencyStore({"dynamodb_idempotency_table": "claims-prod"}, client=moto_dynamodb)
-    claim = store.claim("k", tenant_id="acme")
-    assert store.complete("k", {"ok": True}, tenant_id="acme", owner=claim.owner)
-    assert moto_dynamodb.scan(TableName="claims-prod")["Count"] == 1
-
-
-# ------------------------------------------------------------------ the whole kit on the emulators
 @pytest.mark.skipif(not os.getenv("DYNAMODB_LOCAL_ENDPOINT"), reason="DYNAMODB_LOCAL_ENDPOINT not set")
-def test_dynamodb_meets_the_whole_contract_on_dynamodb_local(monkeypatch):
+def test_the_whole_contract_on_dynamodb_local(monkeypatch):
     for key, value in (("AWS_ACCESS_KEY_ID", "local"), ("AWS_SECRET_ACCESS_KEY", "local")):
         monkeypatch.setenv(key, value)
-    client = boto3.client("dynamodb", region_name="us-east-1", endpoint_url=os.environ["DYNAMODB_LOCAL_ENDPOINT"])
+    endpoint = os.environ["DYNAMODB_LOCAL_ENDPOINT"]
+    client = boto3.client("dynamodb", region_name="us-east-1", endpoint_url=endpoint)
     claims, checkpoints = f"claims-{uuid.uuid4().hex[:8]}", f"checkpoints-{uuid.uuid4().hex[:8]}"
-    _dynamodb_tables(client, claims, checkpoints)
+    _tables(client, claims, checkpoints)
     try:
-        config = {"dynamodb_idempotency_table": claims, "dynamodb_checkpoint_table": checkpoints}
-        assert len(check_idempotency_store(lambda c: DynamoDBIdempotencyStore(config, client=client, clock=c))) == 24
-        assert len(check_checkpoint_store(lambda c: DynamoDBCheckpointStore(config, client=client, clock=c))) == 8
+        b = bindings_from_profile("anthropic_bedrock", overrides={
+            "aws_endpoint_url": endpoint, "dynamodb_idempotency_table": claims, "dynamodb_checkpoint_table": checkpoints})
+        cfg = b.config()
+        assert len(check_idempotency_store(lambda c: type(b.idempotency_store).from_config(cfg, clock=c))) == 24
+        assert len(check_checkpoint_store(lambda c: type(b.checkpoint_store).from_config(cfg, clock=c))) == 8
     finally:
         for table in (claims, checkpoints):
             client.delete_table(TableName=table)
 
 
 @pytest.mark.skipif(not os.getenv("FIRESTORE_EMULATOR_HOST"), reason="FIRESTORE_EMULATOR_HOST not set")
-def test_firestore_meets_the_whole_contract_on_the_emulator():
-    from google.cloud import firestore
-    client = firestore.Client(project=f"demo-{uuid.uuid4().hex[:8]}")
-    assert len(check_idempotency_store(lambda c: FirestoreIdempotencyStore({}, client=client, clock=c))) == 24
-    assert len(check_checkpoint_store(lambda c: FirestoreCheckpointStore({}, client=client, clock=c))) == 8
+def test_the_whole_contract_on_the_firestore_emulator():
+    b = bindings_from_profile("google_vertex", overrides={"gcp_project": f"demo-{uuid.uuid4().hex[:8]}"})
+    cfg = b.config()
+    assert len(check_idempotency_store(lambda c: type(b.idempotency_store).from_config(cfg, clock=c))) == 24
+    assert len(check_checkpoint_store(lambda c: type(b.checkpoint_store).from_config(cfg, clock=c))) == 8
 
 
 @pytest.mark.skipif(not os.getenv("COSMOS_EMULATOR_ENDPOINT"), reason="COSMOS_EMULATOR_ENDPOINT not set")
-def test_cosmos_meets_the_whole_contract_on_the_emulator():
+def test_the_whole_contract_on_the_cosmos_emulator():
     from azure.cosmos import CosmosClient, PartitionKey
-    database = CosmosClient(os.environ["COSMOS_EMULATOR_ENDPOINT"], COSMOS_EMULATOR_KEY) \
-        .create_database_if_not_exists("e2a-managed-test")
-    containers = []
-
-    def container():                             # as terraform/main.tf: partition key /pk, TTL on
-        c = database.create_container(f"c-{uuid.uuid4().hex[:8]}", PartitionKey("/pk"), default_ttl=-1)
-        containers.append(c.id)
-        return c
+    endpoint = os.environ["COSMOS_EMULATOR_ENDPOINT"]
+    database = CosmosClient(endpoint, COSMOS_EMULATOR_KEY).create_database_if_not_exists("e2a-managed-test")
+    name = f"e2a-{uuid.uuid4().hex[:8]}"                 # as terraform/main.tf: one container, /pk, TTL on
+    database.create_container(name, PartitionKey("/pk"), default_ttl=-1)
     try:
-        assert len(check_idempotency_store(lambda c: CosmosIdempotencyStore({}, container=container(), clock=c))) == 24
-        assert len(check_checkpoint_store(lambda c: CosmosCheckpointStore({}, container=container(), clock=c))) == 8
+        b = bindings_from_profile("openai_azure", overrides={
+            "cosmos_endpoint": endpoint, "cosmos_key": COSMOS_EMULATOR_KEY, "cosmos_database": "e2a-managed-test",
+            "cosmos_container": name})
+        cfg = b.config()
+        assert len(check_idempotency_store(lambda c: type(b.idempotency_store).from_config(cfg, clock=c))) == 24
+        assert len(check_checkpoint_store(lambda c: type(b.checkpoint_store).from_config(cfg, clock=c))) == 8
     finally:
-        for name in containers:
-            database.delete_container(name)
+        database.delete_container(name)

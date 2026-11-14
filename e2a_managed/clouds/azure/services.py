@@ -5,9 +5,9 @@
     AzureSemanticRanker         ManagedReranker   reads the semantic ranker's score (no extra call)
     AzureContentSafetyStage     IngressStage      Prompt Shields (jailbreak / injection) + harm categories
     APIMGatewayTool             MCPToolService    Azure API Management in front of MCP servers
-    CosmosIdempotencyStore /
-    CosmosCheckpointStore                         e2a-adapters (E2A v1.5), bound from config
     AzureObservability, AzureInfraProvisioner, AzureReleasePipeline
+
+The stores, broker and secret store come from e2a-adapters' "azure" profile, which openai_azure extends.
 
 REST calls use httpx with Entra ID bearer tokens (or a key when configured). The
 transport is injectable, so tests drive the exact request bodies the services document.
@@ -27,7 +27,6 @@ from ...managed_rag import ManagedReranker, ManagedVectorIndex
 from ...mcp_gateway import ManagedMCPGatewayTool
 from ...observability import ManagedObservability
 from ...release import ManagedReleasePipeline
-from ...stores import AdapterCheckpointStore, AdapterIdempotencyStore
 
 SEARCH_API = "2024-07-01"
 CONTENT_SAFETY_API = "2024-09-01"
@@ -160,35 +159,6 @@ class APIMGatewayTool(ManagedMCPGatewayTool):
     def _auth_headers(self, endpoint, config=None, **kwargs):
         key = resolve_config("azure_apim_subscription_key", self._cfg(config), kwargs)
         return {"Ocp-Apim-Subscription-Key": key} if key else {}
-
-
-# ------------------------------------------------------------------------ Cosmos DB stores
-def _cosmos_adapter(store, kind: str, container_name: str):
-    """The e2a-adapters Cosmos DB store on <cosmos_database>/<container_name> (partition key
-    /pk, TTL on: terraform/main.tf). Entra ID only: the account has local keys disabled."""
-    import e2a_adapters.azure as adapters
-    container = store._injected.get("container")
-    if container is None:
-        from azure.cosmos import CosmosClient
-        from azure.identity import DefaultAzureCredential
-        client = CosmosClient(resolve_config("cosmos_endpoint", store.config), credential=DefaultAzureCredential())
-        container = client.get_database_client(resolve_config("cosmos_database", store.config)) \
-            .get_container_client(container_name)
-    return getattr(adapters, kind)(container, clock=store._clock)
-
-
-class CosmosIdempotencyStore(AdapterIdempotencyStore):
-    """E2A claims on Cosmos DB: e2a-adapters' CosmosIdempotencyStore, bound from config."""
-
-    def _build(self):
-        return _cosmos_adapter(self, "CosmosIdempotencyStore", "idempotency")
-
-
-class CosmosCheckpointStore(AdapterCheckpointStore):
-    """Approval checkpoints on Cosmos DB: e2a-adapters' CosmosCheckpointStore, bound from config."""
-
-    def _build(self):
-        return _cosmos_adapter(self, "CosmosCheckpointStore", "checkpoints")
 
 
 # ------------------------------------------------------------------------ substrate

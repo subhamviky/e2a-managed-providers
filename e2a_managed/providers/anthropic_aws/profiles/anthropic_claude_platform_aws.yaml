@@ -1,6 +1,9 @@
 name: anthropic_claude_platform_aws
 provider: anthropic
 cloud: aws
+# E2A 1.7: the cloud infrastructure (stores, broker, secrets, identity claims) comes from
+# e2a-adapters' "aws" profile; this profile adds the AI services and overrides what it must
+extends: aws
 description: >
   Claude Platform on AWS (Anthropic-operated, AWS IAM/SigV4 and AWS billing, same-day API
   parity): adds the Anthropic MCP connector, server-side refusal fallbacks and Claude
@@ -19,14 +22,11 @@ bindings:
   guardrail_stage: e2a_managed.clouds.aws.bedrock:BedrockGuardrailStage
   prompt_registry: e2a_managed.clouds.aws.bedrock:BedrockPromptRegistry
   observability_engine: e2a_managed.clouds.aws.substrate:AWSObservability
-  idempotency_store: e2a_managed.clouds.aws.substrate:DynamoDBIdempotencyStore
-  checkpoint_store: e2a_managed.clouds.aws.substrate:DynamoDBCheckpointStore
   infra_provisioner: e2a_managed.clouds.aws.substrate:AWSInfraProvisioner
   release_pipeline: e2a_managed.clouds.aws.substrate:AWSReleasePipeline
 config:
   model_id: ${LLM_MODEL_ID:-claude-opus-5-5}          # bare first-party ids on this platform
   reasoning_effort: ${LLM_REASONING_EFFORT:-medium}
-  aws_region: ${AWS_REGION:-us-east-1}
   anthropic_aws_workspace_id: ${ANTHROPIC_AWS_WORKSPACE_ID}
   # Remote MCP servers Claude may call through the MCP connector (read tools only), e.g.
   # MCP_SERVERS='[{"name":"o2c-tools","url":"https://o2c.example.com/mcp","token_env":"O2C_MCP_TOKEN"}]'
@@ -44,6 +44,4 @@ config:
   bedrock_prompt_arn_prefix: ${BEDROCK_PROMPT_ARN_PREFIX}
   delegated_runtime_id: ${DELEGATED_RUNTIME_ID}
   delegated_runtime_environment: ${DELEGATED_RUNTIME_ENVIRONMENT}
-  dynamodb_idempotency_table: ${DYNAMODB_IDEMPOTENCY_TABLE:-e2a-idempotency}
-  dynamodb_checkpoint_table: ${DYNAMODB_CHECKPOINT_TABLE:-e2a-checkpoints}
   otel_service_name: ${OTEL_SERVICE_NAME:-e2a-service}

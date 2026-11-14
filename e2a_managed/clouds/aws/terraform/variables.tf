@@ -53,3 +53,9 @@ variable "checkpoint_table" {
   type    = string
   default = "e2a-checkpoints"
 }
+
+variable "state_table" {
+  description = "versioned rows and leases (DYNAMODB_STATE_TABLE of e2a-adapters' aws profile)"
+  type        = string
+  default     = "e2a-state"
+}

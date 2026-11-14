@@ -1,6 +1,9 @@
 name: anthropic_bedrock
 provider: anthropic
 cloud: aws
+# E2A 1.7: the cloud infrastructure (stores, broker, secrets, identity claims) comes from
+# e2a-adapters' "aws" profile; this profile adds the AI services and overrides what it must
+extends: aws
 description: >
   Claude on Amazon Bedrock (AWS-operated) with the Bedrock platform services around it:
   Titan embeddings, S3 Vectors, Bedrock Rerank (Cohere Rerank 3.5), Bedrock Guardrails,
@@ -21,8 +24,6 @@ bindings:
   mcp_gateway_tool: e2a_managed.clouds.aws.bedrock:AgentCoreGatewayTool
   delegated_runtime: e2a_managed.clouds.aws.bedrock:AgentCoreRuntime
   observability_engine: e2a_managed.clouds.aws.substrate:AWSObservability
-  idempotency_store: e2a_managed.clouds.aws.substrate:DynamoDBIdempotencyStore
-  checkpoint_store: e2a_managed.clouds.aws.substrate:DynamoDBCheckpointStore
   infra_provisioner: e2a_managed.clouds.aws.substrate:AWSInfraProvisioner
   release_pipeline: e2a_managed.clouds.aws.substrate:AWSReleasePipeline
 config:
@@ -30,7 +31,6 @@ config:
   model_id: ${LLM_MODEL_ID:-anthropic.claude-opus-5-5}
   fallback_model_id: ${LLM_FALLBACK_MODEL_ID:-anthropic.claude-opus-4-8}
   reasoning_effort: ${LLM_REASONING_EFFORT:-medium}
-  aws_region: ${AWS_REGION:-us-east-1}
   # A hosted model is not a 3-second simulator: E2A's upstream deadline and context budget
   # are raised for real inference. The request deadline still bounds the whole call.
   llm_max_latency: ${LLM_MAX_LATENCY:-60}
@@ -46,6 +46,4 @@ config:
   bedrock_prompt_arn_prefix: ${BEDROCK_PROMPT_ARN_PREFIX}
   agentcore_gateway_url: ${AGENTCORE_GATEWAY_URL}
   delegated_runtime_id: ${DELEGATED_RUNTIME_ID}
-  dynamodb_idempotency_table: ${DYNAMODB_IDEMPOTENCY_TABLE:-e2a-idempotency}
-  dynamodb_checkpoint_table: ${DYNAMODB_CHECKPOINT_TABLE:-e2a-checkpoints}
   otel_service_name: ${OTEL_SERVICE_NAME:-e2a-service}

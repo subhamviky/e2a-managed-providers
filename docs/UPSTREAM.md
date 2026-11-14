@@ -11,7 +11,7 @@ that knows a project becomes an example runner.
 | `codec.py` canonical conversation and tool-call shape | wire formats only | no | **Canonical half done upstream (E2A v1.6.0):** `e2a.llm_types`; the per-wire mappers stay here |
 | `managed_llm.ManagedLLMService` (retry ownership, typed refusal, per-call params) | no | no | **Done upstream:** retries by error class (E2A v1.5.1), `ModelRefusal` and status `REFUSED` (v1.6.0). The provider-hook shape stays here |
 | `ManagedReranker` port | no | no | **Done upstream (E2A v1.6.1):** `e2a.BaseReranker`; `ManagedReranker` is its client-holding base here |
-| `stores` (claims and checkpoints) | – | – | **Done upstream:** `e2a-adapters` (E2A v1.5.0) implements the state machine once (`e2a_adapters.cas`) and for DynamoDB; this package now only binds those adapters from config |
+| `stores` (claims and checkpoints) | – | – | **Done upstream:** `e2a-adapters` implements the state machine (`e2a_adapters.cas`, DynamoDB); since 1.7.0 its cloud profiles bind the stores, so this package's wrappers are removed and the provider profiles `extends` the cloud profiles |
 | `delegated.DelegatedRuntime` / `DelegatedAgent` | no | no | **Done upstream (E2A v1.6.1):** `e2a.DelegatedRuntime`; `DelegatedAgent` is removed, a runtime is bound per agent with an E2A scope |
 | `guardrails.ManagedGuardrailStage` | no | no | **Done upstream (E2A v1.6.1):** `e2a.ManagedGuardrailStage` (and an egress variant) |
 | `offline.py`, `swap.py`, `pytest_plugin.py` | wire fixtures | no | here: they know each provider's wire. E2A's model contract (`check_llm_service`, v1.6.0) drives them |
