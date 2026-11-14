@@ -1,5 +1,7 @@
 # E2A v1.4 — Improvement Proposal: universal abstractions for managed AI services
 
+> Superseded for decisions by [E2A_IMPROVEMENT_PROPOSAL_v2.md](E2A_IMPROVEMENT_PROPOSAL_v2.md). Kept for the detailed rationale of each item.
+
 | | |
 |---|---|
 | Status | Proposal for review. Nothing here is implemented in `e2a-framework`. |
