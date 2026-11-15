@@ -181,3 +181,5 @@ This is an independent project. It is not affiliated with, endorsed by or sponso
 Anthropic, OpenAI, Google, Meta, Amazon Web Services, Microsoft or Cohere. Their names and
 services are referred to only to describe what this code integrates with, and they are the
 trademarks of their owners.
+
+Provider services, APIs, models, features and availability may change over time; production integrations should be validated against the respective provider's current official documentation and terms.
