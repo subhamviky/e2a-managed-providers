@@ -1,0 +1,27 @@
+@startuml
+!include ../../common/style.puml
+title An event announced exactly once: transactional outbox and idempotent consumer
+autonumber "<b>0."
+participant "Producer service" as P
+database "Transactional store\n(+ its outbox)" as DB
+participant "BrokerOutboxSweeper\n(under a lease)" as SW
+queue "Broker\n(SQS/SNS, Pub/Sub,\nService Bus)" as B
+participant "IdempotentConsumer\n.settle" as C
+database "Consumer's\nidempotency store" as I
+P -> DB : put_if_version(row, version, outbox=[event])
+note right of DB : row and event in ONE commit:\nthe event is pending iff COMMITTED
+SW -> DB : pending()
+SW -> B : publish(event, tenant_id, idempotency_key)
+SW -> DB : mark_published(id, fencing_token)
+B -> C : delivery (at least once)
+C -> I : claim(event key, tenant, fingerprint)
+alt CLAIMED
+  C -> C : _handle (the effect)
+  C -> I : complete
+  C -> B : ack
+else REPLAY (a redelivery)
+  C -> B : ack (duplicate)
+else poison (contract broken)
+  C -> B : dead_letter(reason)
+end
+@enduml

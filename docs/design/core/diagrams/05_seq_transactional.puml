@@ -1,0 +1,37 @@
+@startuml
+!include ../../common/style.puml
+title Transactional agent: managed reasoning, E2A-controlled effect
+autonumber "<b>0."
+actor Caller as U
+participant "Gateway\n(cloud)" as G
+participant "BaseWorkflow\n.execute" as W
+database "Idempotency\nstore" as I
+participant "BaseAgent\n.run" as A
+participant "llm_service\n(provider)" as M
+participant "Approval stage /\ncheckpoint" as P
+participant "io_modify\n(BaseToolService)" as T
+database "System of\nrecord" as S
+U -> G : request + token
+G -> W : verified claims -> tenant, user, roles
+W -> I : claim(idempotency_key, tenant)
+I --> W : CLAIMED
+W -> A : step
+A -> A : screening stages (capacity, budget,\nfirewall), _prepare (io_read)
+alt amount above the approval threshold (deciding stage)
+  A -> P : save checkpoint (PENDING)
+  A --> U : AWAITING_APPROVAL
+  U -> W : resume(checkpoint, decision)
+  W -> W : _authorize_decision (four eyes),\nrehydrate, continue at the paused step
+end
+A -> A : _apply_policy (business authorisation)
+A -> M : _build_messages, then\nprocess_inference(messages, deadline)
+M --> A : canonical result (structured, usage)
+A -> A : _evaluate_output (>= min_confidence)\nelse _fallback
+A -> T : _act: execute(payload, idempotency_key)
+T -> S : write
+S --> T : response
+T --> A : outcome COMMITTED | NOT_COMMITTED | UNKNOWN
+A -> A : _confirm (io_read the system of record)
+W -> I : complete(result) | fail(UNKNOWN)
+W --> U : typed result
+@enduml

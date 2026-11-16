@@ -1,0 +1,12 @@
+digraph G {
+  graph [rankdir=LR, fontname="DejaVu Sans", fontsize=13, labelloc=t, label=<<b>Five hosting patterns for a frontier model</b>>, fontcolor="#1F3864", nodesep=0.25, ranksep=0.6, pad=0.25];
+  node [shape=box, style="rounded,filled", fillcolor="#F4F8FC", color="#1F3864", fontname="DejaVu Sans", fontsize=10, fontcolor="#1F3864", margin="0.12,0.05"];
+  edge [color="#2E4A6B", fontname="DejaVu Sans", fontsize=9];
+  e2a [label="E2A service\n(in the customer's cloud)", shape=ellipse, fillcolor="#FFFFFF"];
+  p1 [label="1  Direct provider API\nprovider operates; provider account,\nprovider data terms"];
+  p2 [label="2  Provider platform through a cloud account\nprovider operates; cloud identity and billing;\ndata may leave the cloud boundary"];
+  p3 [label="3  Cloud-operated distribution\nhyperscaler operates the model in its\nAI platform; cloud identity, network, terms"];
+  p4 [label="4  Remote from another cloud\nE2A in cloud A, model in cloud B or provider;\ncross-cloud identity federation and egress"];
+  p5 [label="5  Self-hosted open weights\ncustomer operates serving; licence,\ncapacity, patching, safety owned"];
+  e2a -> p1; e2a -> p2; e2a -> p3; e2a -> p4; e2a -> p5;
+}

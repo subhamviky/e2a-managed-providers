@@ -1,0 +1,23 @@
+@startuml
+!include ../../common/style.puml
+title An unknown effect is reconciled, never blindly repeated
+autonumber "<b>0."
+participant "BaseAgent._act" as A
+participant "io_modify" as T
+database "System of\nrecord" as S
+database "Idempotency\nstore" as I
+participant "BaseReconciliationService\n.reconcile" as R
+A -> T : execute(payload, idempotency_key)
+T -> S : write
+S -[#B7791F]->x T : timeout after the request was sent
+T --> A : PhysicalOutcome.UNKNOWN
+A -> I : fail(outcome = UNKNOWN)
+note right of I : the claim is parked:\nRECOVERY_REQUIRED on redelivery,\nnever re-executed
+... later (schedule or operator) ...
+R -> S : read the record by its idempotency key
+alt the effect exists
+  R -> I : settle as COMMITTED
+else it does not
+  R -> T : replay with the SAME idempotency key
+end
+@enduml

@@ -1,0 +1,29 @@
+@startuml
+!include ../../common/style.puml
+title Managed agent runtime (delegated): read tools only
+autonumber "<b>0."
+actor Caller as U
+participant "E2A agent\n(scope selects the runtime)" as A
+participant "DelegatedRuntime\n(provider-managed session)" as R
+participant "Provider's agent loop\n(managed)" as L
+participant "Read tool\n(io_read, tenant-scoped)" as T
+U -> A : question (tenant, deadline)
+A -> R : bind_tool(read tools)
+note right of R : a material tool raises\nMaterialToolRefused:\nmaterial effects stay in E2A
+A -> R : process_inference(messages, tools)
+R -> L : start session (turn limit, deadline)
+loop until an answer or the turn limit
+  L -> R : tool call request
+  R -> T : run_tool(name, args) under the caller's tenant
+  T --> R : facts
+  R -> L : tool result
+end
+alt turn limit reached
+  R --> A : DelegatedTurnLimit (typed failure)
+else answer
+  L --> R : answer
+  R --> A : canonical result
+end
+A -> A : _evaluate_output, domain checks
+A --> U : answer (read-only: no _act)
+@enduml

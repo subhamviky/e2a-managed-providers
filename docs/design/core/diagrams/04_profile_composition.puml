@@ -1,0 +1,41 @@
+@startuml
+!include ../../common/style.puml
+title Profile composition: a provider profile extends a cloud profile
+skinparam linetype ortho
+class "Profile\n(e2a.bindings)" as Profile {
+  name, provider, cloud
+  extends
+  bindings: seam -> factory
+  config: key -> value | ${VAR:-default}
+  features
+  literal_secrets
+}
+class "Bindings\n(e2a.bindings)" as Bindings {
+  get(seam)
+  config()
+  verify()
+}
+class "cloud profile\naws | gcp | azure\n(e2a-adapters)" as Cloud <<profile>> {
+  idempotency_store, checkpoint_store,
+  transactional_store, lease,
+  message_broker, outbox_store,
+  credential_provider, identity_resolver
+  identity_source
+}
+class "provider profile\ne.g. anthropic_bedrock\n(e2a-managed-providers)" as Prov <<profile>> {
+  llm_service, embedding_model,
+  vector_index, reranker, rag_pipeline,
+  guardrail_stage, prompt_registry,
+  mcp_gateway_tool, delegated_runtime,
+  observability_engine,
+  infra_provisioner, release_pipeline
+}
+class "E2A ports\nBaseLLMAgentService, BaseRAGPipeline,\nBaseIdempotencyStore, BaseMessageBroker, ..." as Ports <<abstract>>
+class "capabilities.verify()" as Cap
+Prov -up-|> Cloud : extends
+Profile <|.. Cloud
+Profile <|.. Prov
+Profile --> Bindings : bindings_from_profile()
+Bindings --> Ports : each seam bound to\none implementation
+Bindings --> Cap : features required by the\ndeployment are provided?
+@enduml

@@ -1,0 +1,22 @@
+@startuml
+!include ../../common/style.puml
+title Identity at ingress: the cloud verifies, E2A resolves
+autonumber "<b>0."
+actor Caller as U
+participant "Cloud gateway\n(API Gateway JWT authorizer,\nGoogle API Gateway,\nContainer Apps authentication)" as G
+participant "e2a_adapters.ingress\n.verified_claims" as V
+participant "ClaimMapIdentityResolver\n.resolve" as R
+participant "Service" as S
+U -> G : request + token
+G -> G : REPLACE: signature, expiry,\nissuer, audience
+G -> S : request + verified claims\n(event / platform header)
+S -> V : verified_claims(source, event | headers)
+V --> S : (claims, verified)
+S -> R : resolve(claims, verified, request_tenant)
+alt verified, trusted issuer, tenant present and matching
+  R --> S : Identity(tenant_id, subject, roles)
+else
+  R --> S : IdentityRefused -> 401 / 403
+end
+note right of R : RETAIN: claim map, tenant map,\ntenant match, roles (E2A)
+@enduml
