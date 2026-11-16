@@ -1,0 +1,23 @@
+digraph G {
+  graph [rankdir=LR, compound=true, fontname="DejaVu Sans", fontsize=13, labelloc=t, label=<<b>Claude on Google Cloud, Google managed (Agent Platform)</b>>, fontcolor="#1F3864", nodesep=0.28, ranksep=0.5, pad=0.25];
+  node [shape=box, style="rounded,filled", fillcolor="#F4F8FC", color="#1F3864", fontname="DejaVu Sans", fontsize=10, fontcolor="#1F3864", margin="0.12,0.05"];
+  edge [color="#2E4A6B", fontname="DejaVu Sans", fontsize=9];
+  user [label="Caller", shape=ellipse, fillcolor="#FFFFFF"];
+  subgraph cluster_gcp { label=<<b>Google Cloud project (Google operates the model)</b>>; style="rounded,filled"; fillcolor="#FBF3E6"; color="#D4A017"; fontcolor="#7A5A00";
+    gw [label="API Gateway\n(Identity Platform JWT;\nX-Apigateway-Api-Userinfo)"];
+    app [label="E2A service (Cloud Run)\nonly the gateway may invoke", fillcolor="#DCE8F5"];
+    subgraph cluster_ap { label=<<b>Gemini Enterprise Agent Platform (aiplatform.googleapis.com)</b>>; style="rounded,filled"; fillcolor="#E6F4F5"; color="#0F7C8C"; fontcolor="#0F5C66";
+      cl [label="Claude: :rawPredict / :streamRawPredict\nglobal, multi-region (us, eu), regional"];
+      vs [label="Vector Search"]; rk [label="Ranking API"]; emb [label="embeddings"];
+    }
+    ma [label="Model Armor\n(sanitize prompts and responses)"];
+    fs [label="Firestore: claims, checkpoints,\nrows + outbox", shape=cylinder];
+    ps [label="Pub/Sub + dead-letter topic", shape=cds];
+    sm [label="Secret Manager", shape=cylinder];
+    obs [label="Cloud Logging / Trace;\nrequest-response logging (30 days)"];
+  }
+  sor [label="System of record", shape=ellipse, fillcolor="#FFFFFF"];
+  user -> gw -> app;
+  app -> cl [label="ADC; roles/aiplatform.user"]; app -> ma; app -> emb; app -> vs; app -> rk;
+  app -> fs; app -> ps; app -> sm; app -> obs [style=dashed]; app -> sor [label="io_modify"];
+}

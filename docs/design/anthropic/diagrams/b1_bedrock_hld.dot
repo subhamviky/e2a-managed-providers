@@ -1,0 +1,28 @@
+digraph G {
+  graph [rankdir=LR, compound=true, fontname="DejaVu Sans", fontsize=13, labelloc=t, label=<<b>Claude on Amazon Bedrock: everything inside the AWS boundary</b>>, fontcolor="#1F3864", nodesep=0.28, ranksep=0.5, pad=0.25];
+  node [shape=box, style="rounded,filled", fillcolor="#F4F8FC", color="#1F3864", fontname="DejaVu Sans", fontsize=10, fontcolor="#1F3864", margin="0.12,0.05"];
+  edge [color="#2E4A6B", fontname="DejaVu Sans", fontsize=9];
+  user [label="Caller", shape=ellipse, fillcolor="#FFFFFF"];
+  subgraph cluster_aws { label=<<b>AWS account (AWS operates the model; zero operator access for Anthropic)</b>>; style="rounded,filled"; fillcolor="#FBF3E6"; color="#D4A017"; fontcolor="#7A5A00";
+    gw [label="API Gateway HTTP API\nJWT authorizer (Cognito)"];
+    subgraph cluster_vpc { label=<<b>VPC</b>>; style="rounded,filled"; fillcolor="#EAF2FA"; color="#2E75B6"; fontcolor="#1F3864";
+      app [label="E2A service\n(Lambda / ECS)\nidentity at ingress, workflow,\nio_modify, confirm", fillcolor="#DCE8F5"];
+    }
+    subgraph cluster_br { label=<<b>Amazon Bedrock and AgentCore</b>>; style="rounded,filled"; fillcolor="#E6F4F5"; color="#0F7C8C"; fontcolor="#0F5C66";
+      cl [label="Claude: bedrock-mantle\n/anthropic/v1/messages\n(or bedrock-runtime InvokeModel / Converse)"];
+      gr [label="Bedrock Guardrails\n(ApplyGuardrail, model-independent)"];
+      emb [label="Titan embeddings"]; rr [label="Rerank\n(Cohere Rerank 3.5 /\nAmazon Rerank)"];
+      kb [label="Knowledge Bases\n(optional managed RAG)"];
+      ac [label="AgentCore Gateway (MCP)\nAgentCore Runtime"];
+    }
+    s3v [label="S3 Vectors\n(vector bucket / index per tenant)", shape=cylinder];
+    ddb [label="DynamoDB\nclaims, checkpoints, rows + outbox", shape=cylinder];
+    sqs [label="SQS / SNS + DLQ", shape=cds];
+    sm [label="Secrets Manager", shape=cylinder];
+    obs [label="CloudWatch / X-Ray / CloudTrail"];
+  }
+  sor [label="System of record", shape=ellipse, fillcolor="#FFFFFF"];
+  user -> gw -> app;
+  app -> cl [label="SigV4 (service role)"]; app -> gr; app -> emb; emb -> s3v [style=invis]; app -> s3v; app -> rr; app -> kb [style=dashed];
+  app -> ac [label="read tools"]; app -> ddb; app -> sqs; app -> sm; app -> obs [style=dashed]; app -> sor [label="io_modify"];
+}

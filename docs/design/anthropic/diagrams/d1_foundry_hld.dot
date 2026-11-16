@@ -1,0 +1,24 @@
+digraph G {
+  graph [rankdir=LR, compound=true, fontname="DejaVu Sans", fontsize=13, labelloc=t, label=<<b>Claude in Microsoft Foundry: two hosting options</b>>, fontcolor="#1F3864", nodesep=0.28, ranksep=0.5, pad=0.25];
+  node [shape=box, style="rounded,filled", fillcolor="#F4F8FC", color="#1F3864", fontname="DejaVu Sans", fontsize=10, fontcolor="#1F3864", margin="0.12,0.05"];
+  edge [color="#2E4A6B", fontname="DejaVu Sans", fontsize=9];
+  user [label="Caller", shape=ellipse, fillcolor="#FFFFFF"];
+  subgraph cluster_az { label=<<b>Azure subscription</b>>; style="rounded,filled"; fillcolor="#FBF3E6"; color="#D4A017"; fontcolor="#7A5A00";
+    aca [label="Container Apps authentication\n(Entra ID; X-MS-CLIENT-PRINCIPAL)"];
+    app [label="E2A service (Container Apps)\nmanaged identity", fillcolor="#DCE8F5"];
+    subgraph cluster_f { label=<<b>Foundry resource: {resource}.services.ai.azure.com/anthropic/v1</b>>; style="rounded,filled"; fillcolor="#E6F4F5"; color="#0F7C8C"; fontcolor="#0F5C66";
+      haz [label="Hosted on Azure\nAnthropic-operated service on Azure\ninfrastructure; prompts and completions\nstay in Azure; Global or US Data Zone"];
+    }
+    cs [label="Azure AI Content Safety\n(no built-in filtering for Claude:\nE2A stage, fail closed)"];
+    srch [label="Azure AI Search\n+ semantic ranker"];
+    cos [label="Cosmos DB: claims, checkpoints,\nrows + outbox", shape=cylinder];
+    sb [label="Service Bus + dead-letter subqueue", shape=cds];
+    kv [label="Key Vault", shape=cylinder];
+    ai [label="Application Insights"];
+  }
+  hant [label="Hosted on Anthropic\nAnthropic infrastructure (outside Azure);\nGlobal Standard; more API features", fillcolor="#E6F4F5", color="#0F7C8C"];
+  sor [label="System of record", shape=ellipse, fillcolor="#FFFFFF"];
+  user -> aca -> app;
+  app -> haz [label="Entra ID token"]; app -> hant [label="same endpoint shape;\nchosen per deployment", style=dashed];
+  app -> cs; app -> srch; app -> cos; app -> sb; app -> kv; app -> ai [style=dashed]; app -> sor [label="io_modify"];
+}

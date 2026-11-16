@@ -1,0 +1,27 @@
+@startuml
+!include ../../common/style.puml
+title On Bedrock: guarded, composed retrieval and client-side refusal routing
+autonumber "<b>0."
+participant "E2A agent" as A
+participant "BedrockGuardrailStage\n(ApplyGuardrail)" as G
+participant "BaseRAGPipeline\n(E2A, COMPOSE)" as R
+participant "Titan / S3 Vectors /\nBedrock Rerank" as K
+participant "BedrockClaudeLLMService\n(bedrock-mantle)" as C
+participant "model_routes\n(E2A)" as F
+A -> G : screen input (E2A governance order)
+G --> A : allow | refuse (fail closed)
+A -> R : retrieve(query, tenant_id)
+R -> K : embed, search tenant namespace, rerank
+K --> R : passages + ids
+R --> A : evidence
+A -> C : process_inference(messages + evidence)
+alt stop_reason "refusal"
+  C --> A : ModelRefusal
+  A -> F : refusal route (fallback_model_id):\nno server-side fallback on Bedrock
+  F --> A : answer or REFUSED
+else answer
+  C --> A : canonical result
+end
+A -> G : screen output (egress)
+A -> R : evaluate_answer (grounding threshold)
+@enduml

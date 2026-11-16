@@ -19,7 +19,7 @@ Each document exists as Markdown (read here) and as a Word file beside it (for s
 | Document | Contents | Word |
 |---|---|---|
 | [Core design](core/E2A_MANAGED_PROVIDERS_CORE_DESIGN.md) | Disposition model and replacement gate; HLD (owners, hosting patterns, capability packs); LLD (seams, profile composition, kernel dispositions); common sequences; failure, security and evidence models | [docx](core/E2A_Managed_Providers_Core_Design.docx) |
-| Anthropic | *planned (D-2)*: Claude API and Managed Agents; Claude Platform on AWS; Amazon Bedrock; Google Cloud; Microsoft Foundry | |
+| [Anthropic](anthropic/README.md) | Four documents by operator: Claude operated by Anthropic (Claude API, Claude Platform on AWS, Google Cloud Anthropic managed); Claude on Amazon Bedrock; Claude on Google Cloud (Google managed); Claude in Microsoft Foundry | in the folder |
 | OpenAI | *planned (D-3)*: OpenAI API; Microsoft Foundry; Amazon Bedrock; Google Cloud | |
 | Google Gemini | *planned (D-4)*: Gemini API; Google Cloud agent platform; use from AWS and Azure | |
 | Meta Llama | *planned (D-5)*: hyperscaler-managed Llama; self-hosted with Llama Stack / OGX | |
