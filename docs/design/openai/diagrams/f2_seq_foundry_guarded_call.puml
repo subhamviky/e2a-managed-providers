@@ -1,0 +1,29 @@
+@startuml
+!include ../../common/style.puml
+title A governed model call in Foundry: E2A's stage, the platform filter, and the refusal route
+autonumber "<b>0."
+participant "E2A agent" as A
+participant "AzureContentSafetyStage\n(E2A governance)" as G
+participant "AzureOpenAIResponsesLLMService" as L
+participant "Foundry deployment\n(DefaultV2 guardrails)" as F
+participant "fallback deployment\n(model_routes)" as B
+A -> G : screen retrieved text and tool output
+alt attack detected
+  G --> A : GovernanceRefusal (REFUSED)
+else clean
+  A -> L : infer (Entra token, deployment name)
+  L -> F : POST /openai/v1/responses
+  alt prompt blocked by the platform
+    F --> L : 400, code content_filter
+    L --> A : today FAILED; intent REFUSED (follow-up)
+  else model refusal
+    F --> L : 200, refusal content part
+    L --> A : ModelRefusal
+    A -> B : model_routes
+    B --> A : answer, or REFUSED
+  else answer
+    F --> L : 200, output (+ content_filters annotations)
+    L --> A : canonical result; E2A validates the schema
+  end
+end
+@enduml

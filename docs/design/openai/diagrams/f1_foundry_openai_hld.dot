@@ -1,0 +1,26 @@
+digraph G {
+  graph [rankdir=LR, compound=true, fontname="DejaVu Sans", fontsize=13, labelloc=t, label=<<b>OpenAI in Microsoft Foundry: the implemented openai_azure profile</b>>, fontcolor="#1F3864", nodesep=0.3, ranksep=0.55, pad=0.25];
+  node [shape=box, style="rounded,filled", fillcolor="#F4F8FC", color="#1F3864", fontname="DejaVu Sans", fontsize=10, fontcolor="#1F3864", margin="0.12,0.05"];
+  edge [color="#2E4A6B", fontname="DejaVu Sans", fontsize=9];
+  subgraph cluster_e2a { label=<<b>E2A service (customer cloud)</b>>; style="rounded,filled"; fillcolor="#EAF2FA"; color="#2E75B6";
+    llm [label="AzureOpenAIResponsesLLMService\n(v1 base URL, deployment name)"];
+    emb [label="AzureOpenAIEmbeddingModel"];
+    rt [label="ResponsesAgentRuntime"];
+    gs [label="AzureContentSafetyStage\n(retrieved text, tool output)"];
+    ing [label="identity at ingress\nazure_container_apps"];
+    ports [label="retrieval, MCP tools, stores\n(host-side, tenant-scoped)"];
+  }
+  mi [label="managed identity (Entra ID)\nCognitive Services OpenAI User", fillcolor="#FBF3E6", color="#D4A017", fontcolor="#7A5A00"];
+  subgraph cluster_az { label=<<b>Microsoft Foundry resource (Microsoft operates; content not available to OpenAI)</b>>; style="rounded,filled"; fillcolor="#E6F4F5"; color="#0F7C8C"; fontcolor="#0F5C66";
+    dep [label="model deployment\nStandard / DataZone / Global"];
+    flt [label="DefaultV2 guardrails\n(prompts and completions)"];
+    ag [label="Foundry Agent Service (option)\nprompt / hosted agents, toolboxes"];
+  }
+  subgraph cluster_svc { label=<<b>Azure services bound by the profile</b>>; style="rounded,filled"; fillcolor="#F2F2F2"; color="#7F7F7F";
+    srch [label="Azure AI Search\n+ semantic ranker"];
+    apim [label="API Management\n(MCP gateway)"];
+    cos [label="Cosmos DB, Service Bus,\nKey Vault (azure profile)"];
+  }
+  llm -> mi; emb -> mi; rt -> mi; mi -> flt; flt -> dep; rt -> ag [style=dashed, xlabel="option"];
+  ports -> srch; ports -> apim; ports -> cos;
+}
