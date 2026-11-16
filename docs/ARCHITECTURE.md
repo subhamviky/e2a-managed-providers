@@ -60,7 +60,7 @@ and Meta profiles on AWS bind the same classes.
 | Prompt cache | E2A decides *what* (static prefix ≥ threshold) | provider decides *how*: Claude `cache_control`, OpenAI `prompt_cache_key`, Gemini `cached_content` |
 | Reasoning depth | `reasoning_effort` | Claude `output_config.effort`, OpenAI `reasoning.effort`, Gemini `thinking_level/budget` |
 | Sampling | not sent to Claude/OpenAI | current reasoning models reject it; still sent to Gemini and Llama (their `features` declare `sampling: supported`) |
-| Refusal | `ModelRefusal` (typed); E2A's `model_routes` answer it with another model | `fallback_model_id` becomes a refusal route; Claude Platform on AWS falls back server-side (`refusal_fallback_server`), so E2A takes no route |
+| Refusal | `ModelRefusal` (typed); E2A's `model_routes` answer it with another model | `fallback_model_id` becomes a refusal route on every Claude profile here; a platform that falls back server-side declares `refusal_fallback_server`, and E2A then takes no route (Anthropic documents server-side fallback, beta, for the Claude API and Claude Models on Google Cloud, Anthropic managed) |
 | Input screening | E2A pattern firewall **and** the managed guardrail | the managed stage fails closed |
 | Output DLP | E2A egress DLP | always on, whatever the provider does |
 | Material effects | E2A `_act` through `io_modify` | never handed to a managed runtime (see below) |

@@ -44,7 +44,7 @@ what it must.
 | Profile | Models | Retrieval | Guardrails | Agent runtime | Infrastructure (from the cloud profile) | Telemetry |
 |---|---|---|---|---|---|---|
 | `anthropic_bedrock` | Claude on Amazon Bedrock | Titan embeddings, S3 Vectors, Bedrock Rerank (Cohere) | Bedrock Guardrails | AgentCore Runtime + Gateway (MCP) | `aws`: DynamoDB, SQS/SNS, outbox, Secrets Manager, Cognito claims | CloudWatch / X-Ray |
-| `anthropic_claude_platform_aws` | Claude Platform on AWS (MCP connector, server-side fallbacks) | same AWS services | Bedrock Guardrails | Claude Managed Agents (`ant apply`) | `aws` | CloudWatch / X-Ray |
+| `anthropic_claude_platform_aws` | Claude Platform on AWS (MCP connector, Managed Agents) | same AWS services | Bedrock Guardrails | Claude Managed Agents (`ant apply`) | `aws` | CloudWatch / X-Ray |
 | `openai_azure` | OpenAI on Azure AI Foundry (v1 Responses API, Entra ID) | text-embedding-3, Azure AI Search (hybrid + semantic ranker) | AI Content Safety (Prompt Shields) | Responses-API agent, APIM as MCP gateway | `azure`: Cosmos DB, Service Bus, outbox, Key Vault, Entra ID claims | Application Insights |
 | `google_vertex` | Gemini on Vertex AI | gemini-embedding, Vector Search (dense+sparse), Ranking API | Model Armor | Vertex AI Agent Engine, IAP MCP gateway | `gcp`: Firestore, Pub/Sub, outbox, Secret Manager, Identity Platform claims | Cloud Trace / Logging |
 | `meta_llama_aws` | Llama via a Llama Stack distribution (Bedrock inference) on ECS | Llama Stack embeddings + vector_io | Llama Guard shields | Llama Stack Responses API | `aws` | CloudWatch |
@@ -143,7 +143,7 @@ service is E2A's too, and this package keeps only the vendor half:
 
 | E2A (neutral) | Here (vendor) |
 |---|---|
-| `model_routes`; `refusal_fallback_server` skips E2A's route | `fallback_model_id` becomes a refusal route; Claude Platform on AWS falls back server-side |
+| `model_routes`; `refusal_fallback_server` skips E2A's route | `fallback_model_id` becomes a refusal route on every Claude profile (server-side fallback is not offered on the AWS platforms) |
 | the `features` map: E2A drops or refuses what a model cannot take, and checks every structured result | each adapter's `features` and its `reasoning_effort` mapping |
 | `ManagedGuardrailStage` and its egress variant: fail closed, `FirewallRefusal` | Bedrock Guardrails, Prompt Shields, Model Armor, Llama Guard (`_screen`) |
 | `DelegatedRuntime`: read tools only, tenant-scoped tool calls, `delegated_max_turns` | Managed Agents, Responses API, AgentCore, Agent Engine sessions |

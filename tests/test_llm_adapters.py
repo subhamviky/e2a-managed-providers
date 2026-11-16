@@ -86,7 +86,8 @@ async def test_mcp_connector_only_where_the_platform_has_it():
     assert "mcp_servers" not in rt2.requests[-1]["body"]
 
 
-@pytest.mark.parametrize("profile", ["anthropic_bedrock", "openai_azure", "google_vertex"])
+@pytest.mark.parametrize("profile", ["anthropic_bedrock", "anthropic_claude_platform_aws", "openai_azure",
+                                     "google_vertex"])
 async def test_refusal_is_typed_and_routed_by_e2a_to_the_fallback_model(profile):
     def refuse(messages):
         return {"text": "I can't help with that.", "stop_reason": "refusal"}
@@ -130,13 +131,17 @@ async def test_each_adapter_declares_its_features_and_e2a_drops_what_it_cannot_t
     assert ("reasoning_effort" in dropped) == (features.get("reasoning") == "none")
 
 
-async def test_a_provider_that_falls_back_server_side_gets_no_e2a_route():
-    calls = []
+def test_server_side_fallback_is_sent_only_by_a_class_that_declares_it():
+    # Claude Platform on AWS does not offer server-side fallback: no `fallbacks`, no beta header
+    from e2a_managed.capabilities import Capability as C
+    from e2a_managed.providers.anthropic_aws.llm_service import FALLBACK_BETA, ClaudePlatformAWSLLMService
+    platform = ClaudePlatformAWSLLMService.__new__(ClaudePlatformAWSLLMService)
+    req = platform._build_request([SYSTEM, USER], "m", None, 64, None, None, None, {}, {})
+    assert "fallbacks" not in req and FALLBACK_BETA not in req.get("betas", [])
+    assert C.REFUSAL_FALLBACK_SERVER not in ClaudePlatformAWSLLMService.capabilities
 
-    def refuse(messages):
-        calls.append(1)
-        return {"text": "no", "stop_reason": "refusal"}
-    svc, rt = offline_llm_service("anthropic_claude_platform_aws", refuse, fallback_model_id="fallback-model")
-    out = await svc.process_inference([SYSTEM, USER], tenant_id="acme")
-    assert out["status"] == "REFUSED" and len(calls) == 1          # the server already tried its fallbacks
-    assert rt.requests[0]["body"].get("fallbacks") == "default"
+    class WithServerFallback(ClaudePlatformAWSLLMService):      # a platform that offers it
+        server_side_fallbacks = True
+    other = WithServerFallback.__new__(WithServerFallback)
+    req = other._build_request([SYSTEM, USER], "m", None, 64, None, None, None, {}, {})
+    assert req["fallbacks"] == "default" and FALLBACK_BETA in req["betas"]
