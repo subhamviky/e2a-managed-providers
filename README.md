@@ -120,7 +120,7 @@ Everything below runs with no account (in CI on every push):
 
 ### Supported E2A versions
 
-This package needs **E2A v1.7.0 or later** (it pins the `v1.7.0` tag). **The cloud infrastructure is
+This package needs **E2A v1.7.0 or later** (it pins the `v1.7.2` tag). **The cloud infrastructure is
 e2a-adapters' (1.7.0):** every provider profile `extends` the cloud profile of its cloud (`aws`, `gcp`,
 `azure`), which binds the stores, the message broker, the secret store and the identity claims; a
 provider profile adds only the AI services and overrides what it must. Its profiles, bindings
