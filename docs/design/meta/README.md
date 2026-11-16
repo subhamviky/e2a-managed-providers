@@ -12,11 +12,11 @@ So the series has two documents, split by **who operates** the model endpoint. E
 | Document | Operator | Status here | Word |
 |---|---|---|---|
 | [Llama on cloud AI platforms](LLAMA_ON_CLOUD_PLATFORMS_DESIGN.md) | AWS (Bedrock), Google (Agent Platform), Microsoft (Foundry) | Documented; Bedrock Llama used today through OGX | [docx](Llama_on_Cloud_Platforms_Design.docx) |
-| [OGX (formerly Llama Stack) and self-hosted Llama](OGX_SELF_HOSTED_LLAMA_DESIGN.md) | the customer | Implemented (`meta_llama_aws`, on the Llama Stack client); migration to OGX 1.x Documented | [docx](OGX_Self_Hosted_Llama_Design.docx) |
+| [OGX (formerly Llama Stack) and self-hosted Llama](OGX_SELF_HOSTED_LLAMA_DESIGN.md) | the customer | Implemented (`ogx_aws` on OGX 1.x; `meta_llama_aws` kept as an alias) | [docx](OGX_Self_Hosted_Llama_Design.docx) |
 
 **What changes E2A's part:**
 - **Lifecycle first.** Azure retires Llama 4 Maverick on 19 November 2026, and Bedrock's Llama models are Legacy until 30 March 2027. A release-pipeline lifecycle check and a non-Llama `model_routes` entry are the design.
-- **The `meta_llama_aws` profile needs a migration.** Two of its calls (`vector_io`, shields) are not in OGX's stable API, and its client is being renamed. The recommended follow-up moves it to the OpenAI SDK against OGX's stable endpoints.
+- **The profile is migrated to OGX 1.x** as `ogx_aws`: the OpenAI SDK against OGX's stable endpoints, vector-store search instead of `vector_io`, and Bedrock Guardrails in place of the removed shields. `meta_llama_aws` stays as an alias for one release.
 - **Meta's own APIs are not covered** until their official documentation can be read and shows a generally available service.
 - **In every variant, E2A keeps:**
   - the business idempotency key;

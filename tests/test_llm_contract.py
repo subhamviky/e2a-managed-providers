@@ -7,7 +7,7 @@ import pytest
 from e2a.port_contract import check_llm_service
 from e2a_managed.offline import offline_llm_service
 
-PROFILES = ["anthropic_bedrock", "anthropic_claude_platform_aws", "openai_azure", "google_vertex", "meta_llama_aws"]
+PROFILES = ["anthropic_bedrock", "anthropic_claude_platform_aws", "openai_azure", "google_vertex", "ogx_aws"]
 
 
 @pytest.mark.parametrize("profile", PROFILES)

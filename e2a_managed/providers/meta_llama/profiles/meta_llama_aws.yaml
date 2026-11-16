@@ -1,39 +1,45 @@
 name: meta_llama_aws
-provider: meta
+provider: ogx
 cloud: aws
 # E2A 1.7: the cloud infrastructure (stores, broker, secrets, identity claims) comes from
 # e2a-adapters' "aws" profile; this profile adds the AI services and overrides what it must
 extends: aws
 description: >
-  Meta Llama through a Llama Stack distribution on AWS (ECS), with Llama models on
-  Amazon Bedrock as the inference provider, Llama Guard shields, pgvector behind
-  vector_io, Llama Stack prompts and its OpenAI-compatible Responses API as the delegated
-  runtime. AWS substrate (DynamoDB, CloudWatch/X-Ray, Terraform, ECR) is shared with the
-  Anthropic profiles.
+  Alias of ogx_aws, kept for one release (Llama Stack was renamed OGX); use ogx_aws.
+  OGX (formerly Llama Stack), the open agentic API server, run by the customer on AWS (ECS,
+  private), with Llama models on Amazon Bedrock as its inference provider (or self-hosted
+  Llama weights), pgvector behind its vector stores, and its stable OpenAI-compatible
+  endpoints called with the OpenAI SDK. Bedrock Guardrails is E2A's always-on guardrail;
+  OGX's own moderation runs inside its Responses loop when configured.
 features: [tool_use, structured_output, streaming, refusal_fallback, embeddings, vector_search,
            hybrid_search, guardrails, prompt_registry, managed_agent_runtime, idempotency_store,
            checkpoint_store, telemetry, infra_as_code, release_pipeline]
 bindings:
-  llm_service: e2a_managed.providers.meta_llama.llm_service:LlamaStackLLMService
-  embedding_model: e2a_managed.providers.meta_llama.llm_service:LlamaStackEmbeddingModel
-  vector_index: e2a_managed.providers.meta_llama.llm_service:LlamaStackVectorIndex
-  guardrail_stage: e2a_managed.providers.meta_llama.llm_service:LlamaGuardStage
-  prompt_registry: e2a_managed.providers.meta_llama.llm_service:LlamaStackPromptRegistry
-  delegated_runtime: e2a_managed.providers.meta_llama.llm_service:LlamaStackResponsesRuntime
+  llm_service: e2a_managed.providers.ogx.llm_service:OGXLLMService
+  embedding_model: e2a_managed.providers.ogx.llm_service:OGXEmbeddingModel
+  vector_index: e2a_managed.providers.ogx.llm_service:OGXVectorIndex
+  guardrail_stage: e2a_managed.clouds.aws.bedrock:BedrockGuardrailStage
+  prompt_registry: e2a_managed.providers.ogx.llm_service:OGXPromptRegistry
+  delegated_runtime: e2a_managed.providers.ogx.llm_service:OGXResponsesRuntime
   observability_engine: e2a_managed.clouds.aws.substrate:AWSObservability
-  infra_provisioner: e2a_managed.providers.meta_llama.infra:LlamaStackAWSInfraProvisioner
+  infra_provisioner: e2a_managed.providers.ogx.infra:OGXAWSInfraProvisioner
   release_pipeline: e2a_managed.clouds.aws.substrate:AWSReleasePipeline
 config:
-  model_id: ${LLM_MODEL_ID:-meta.llama4-maverick-17b-instruct-v1:0}   # as registered in run.yaml
+  # Bedrock lists this model as Legacy, end of life 30 Mar 2027: set a non-Llama fallback
+  model_id: ${LLM_MODEL_ID:-meta.llama4-maverick-17b-instruct-v1:0}   # as registered in config.yaml
   fallback_model_id: ${LLM_FALLBACK_MODEL_ID}
   temperature: ${LLM_TEMPERATURE:-0.0}
-  llama_stack_url: ${LLAMA_STACK_URL:-http://llama-stack.internal:8321}
-  llama_stack_api_key: ${LLAMA_STACK_API_KEY}
-  llama_shield_id: ${LLAMA_SHIELD_ID:-llama-guard}
+  ogx_url: ${OGX_URL:-http://ogx.internal:8321}
+  ogx_api_key: ${OGX_API_KEY}
+  ogx_service_tenant: ${OGX_SERVICE_TENANT:-e2a-service}
+  ogx_guardrails: ${OGX_GUARDRAILS:-false}
+  bedrock_guardrail_id: ${BEDROCK_GUARDRAIL_ID}
+  bedrock_guardrail_version: ${BEDROCK_GUARDRAIL_VERSION:-DRAFT}
   llm_max_latency: ${LLM_MAX_LATENCY:-60}
   context_budget: ${LLM_CONTEXT_BUDGET:-120000}
   max_output_tokens: ${LLM_MAX_OUTPUT_TOKENS:-4096}
   embedding_model_id: ${EMBEDDING_MODEL_ID:-amazon.titan-embed-text-v2:0}
+  embedding_dimensions: ${EMBEDDING_DIMENSIONS:-1024}
   vector_index_name: ${VECTOR_INDEX_NAME:-e2a-knowledge}
   delegated_runtime_id: ${DELEGATED_RUNTIME_ID}      # model the Responses agent runs on
   otel_service_name: ${OTEL_SERVICE_NAME:-e2a-service}

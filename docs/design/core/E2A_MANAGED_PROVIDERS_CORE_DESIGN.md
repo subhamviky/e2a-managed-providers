@@ -163,7 +163,7 @@ All are **Implemented** and proven by E2A's port contracts on DynamoDB Local and
 | `anthropic_claude_platform_aws` | Anthropic | 2 (Claude Platform on AWS) | `aws` | Implemented |
 | `openai_azure` | OpenAI | 3 (Azure) | `azure` | Implemented |
 | `google_vertex` | Google | 3 (Google Cloud) | `gcp` | Implemented |
-| `meta_llama_aws` | Meta | 3 and 5 (Bedrock behind Llama Stack) | `aws` | Implemented |
+| `ogx_aws` (alias `meta_llama_aws`) | Meta (Llama), through OGX | 3 and 5 (Bedrock behind OGX, formerly Llama Stack) | `aws` | Implemented |
 
 Other variants described in the provider documents are labelled Documented or To validate.
 

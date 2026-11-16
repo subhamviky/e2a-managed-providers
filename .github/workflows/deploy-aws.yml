@@ -1,4 +1,4 @@
-# Deploys an AWS profile (anthropic_bedrock, anthropic_claude_platform_aws, meta_llama_aws).
+# Deploys an AWS profile (anthropic_bedrock, anthropic_claude_platform_aws, ogx_aws).
 # Inert until the repository variable E2A_DEPLOY_ENABLED is 'true' and an OIDC role exists.
 name: deploy-aws
 on:
@@ -6,7 +6,7 @@ on:
     inputs:
       profile:
         type: choice
-        options: [anthropic_bedrock, anthropic_claude_platform_aws, meta_llama_aws]
+        options: [anthropic_bedrock, anthropic_claude_platform_aws, ogx_aws]
       tenant:
         default: acme
       live_smoke:
@@ -31,7 +31,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install -e ".[anthropic-aws,meta-llama]"
+      - run: pip install -e ".[anthropic-aws,ogx]"
       - name: Release gate (static checks, profile verification, tests)
         run: python -c "from e2a_managed import bindings_from_profile as b; import sys; r=b('${{ inputs.profile }}').release_pipeline.run_pipeline({'faithfulness_threshold':0.8}); print(r['status']); sys.exit(r['status']!='SUCCESS')"
       - name: Landing-zone variables from the profile

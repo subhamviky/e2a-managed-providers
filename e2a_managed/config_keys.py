@@ -45,10 +45,10 @@ def _opt_int(v: Any):
 
 
 _COMMON = "Managed providers — common"
-_AWS = "Managed providers — Anthropic / Meta on AWS"
+_AWS = "Managed providers — Anthropic / OGX on AWS"
 _AZURE = "Managed providers — OpenAI on Azure"
 _GCP = "Managed providers — Google on Vertex AI"
-_META = "Managed providers — Meta Llama Stack"
+_OGX = "Managed providers — OGX (formerly Llama Stack)"
 
 MANAGED_KEYS = [
     # ---- common: profile selection and who owns which runtime concern
@@ -78,7 +78,7 @@ MANAGED_KEYS = [
     ConfigKey("otlp_endpoint", "OTEL_EXPORTER_OTLP_ENDPOINT", None, str, _COMMON,
               "ManagedObservability — OTLP collector (ADOT, Azure Monitor agent, Cloud Trace collector)"),
 
-    # ---- AWS (Anthropic on Bedrock / Claude Platform on AWS, Meta on AWS)
+    # ---- AWS (Anthropic on Bedrock / Claude Platform on AWS, OGX on AWS)
     ConfigKey("anthropic_aws_workspace_id", "ANTHROPIC_AWS_WORKSPACE_ID", None, str, _AWS,
               "ClaudePlatformAWSLLMService — workspace of Claude Platform on AWS"),
     ConfigKey("anthropic_betas", "ANTHROPIC_BETAS", [], _list, _AWS,
@@ -125,12 +125,17 @@ MANAGED_KEYS = [
     ConfigKey("vertex_agent_engine", "VERTEX_AGENT_ENGINE", None, str, _GCP,
               "VertexAgentEngineRuntime — projects/../reasoningEngines/.."),
 
-    # ---- Meta (Llama Stack distribution)
-    ConfigKey("llama_stack_url", "LLAMA_STACK_URL", "http://localhost:8321", str, _META,
-              "every Llama Stack client"),
-    ConfigKey("llama_stack_api_key", "LLAMA_STACK_API_KEY", None, str, _META, "Llama Stack auth", secret=True),
-    ConfigKey("llama_shield_id", "LLAMA_SHIELD_ID", "llama-guard", str, _META, "LlamaGuardStage"),
-    ConfigKey("llama_vector_store_id", "LLAMA_VECTOR_STORE_ID", None, str, _META, "LlamaStackVectorIndex"),
+    # ---- OGX (formerly Llama Stack): the customer-run server in front of Llama or any model
+    ConfigKey("ogx_url", "OGX_URL", "http://localhost:8321", str, _OGX,
+              "every OGX client (the OpenAI SDK at <url>/v1)"),
+    ConfigKey("ogx_api_key", "OGX_API_KEY", None, str, _OGX,
+              "OGX's own API key, when the server's auth uses one", secret=True),
+    ConfigKey("ogx_service_tenant", "OGX_SERVICE_TENANT", "e2a-service", str, _OGX,
+              "OGX tenant (x-tenant-id) for calls that carry no request tenant: embeddings, prompts"),
+    ConfigKey("ogx_search_mode", "OGX_SEARCH_MODE", "hybrid", str, _OGX,
+              "OGXVectorIndex — vector store search mode: hybrid, vector or keyword"),
+    ConfigKey("ogx_guardrails", "OGX_GUARDRAILS", False, _bool, _OGX,
+              "OGXResponsesRuntime — ask OGX to run its configured moderation endpoint inside the loop"),
 ]
 
 for _spec in MANAGED_KEYS:

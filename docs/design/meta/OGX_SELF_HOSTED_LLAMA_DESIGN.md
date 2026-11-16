@@ -1,17 +1,17 @@
 # OGX (formerly Llama Stack) and Self-Hosted Llama — Design
 
-### An open, self-hosted agentic API server in front of Llama or any model: the `meta_llama_aws` profile
+### An open, self-hosted agentic API server in front of Llama or any model: the `ogx_aws` profile
 
-*This document places OGX within E2A. OGX is the open-source server formerly called Llama Stack, renamed in April 2026, which now speaks the OpenAI, Anthropic and Google APIs in front of 23 inference providers. The customer runs it, so it is the route for self-hosted Llama weights (pattern 5) and a portable front for managed models. The repository's `meta_llama_aws` profile is built on the Llama Stack client and two APIs that OGX no longer lists as stable, so this document also gives the migration design. It records only what differs from the core design.*
+*This document places OGX within E2A. OGX is the open-source server formerly called Llama Stack, renamed in April 2026, which now speaks the OpenAI, Anthropic and Google APIs in front of 23 inference providers. The customer runs it, so it is the route for self-hosted Llama weights (pattern 5) and a portable front for managed models. The repository's profile, first built on the Llama Stack client, is migrated to OGX 1.x as `ogx_aws` (with `meta_llama_aws` kept as an alias for one release); Section 2 records what changed and why. It records only what differs from the core design.*
 
 | | |
 |---|---|
 | Framework | E2A, with `e2a-adapters` and `e2a-managed-providers` |
 | Document type | Provider design document (HLD + LLD), Meta series |
 | Author | Subham Gupta, Principal Platform Architect |
-| Source baseline | `e2a-framework` `v1.7.4`; `e2a-managed-providers` `main`: `LlamaStackLLMService`, `LlamaStackEmbeddingModel`, `LlamaStackVectorIndex`, `LlamaGuardStage`, `LlamaStackPromptRegistry`, `LlamaStackResponsesRuntime`; profile `meta_llama_aws`; `distribution/run.yaml` |
+| Source baseline | `e2a-framework` `v1.7.4`; `e2a-managed-providers`: `OGXLLMService`, `OGXEmbeddingModel`, `OGXVectorIndex`, `OGXPromptRegistry`, `OGXResponsesRuntime`; profile `ogx_aws` (alias `meta_llama_aws`); `providers/ogx/distribution/config.yaml` |
 | Date | 16 November 2026 (product facts checked on this date; OGX docs current release v1.5.0) |
-| Status | Implemented on the Llama Stack client (offline replay). Migration to OGX v1: Documented (follow-up step). |
+| Status | Implemented on OGX 1.x's stable endpoints (offline replay and recorded shapes; the three projects' suites pass on `ogx_aws`). Live OGX server: To validate. |
 
 > **Disclaimer.** This is independent reference material for studying software architecture. It has no affiliation with, and no endorsement by, Meta, Amazon / AWS, Google, Microsoft, the OGX project or any other company or project named, and it is not a substitute for any provider's products, documentation or terms. Product names are trademarks of their owners. Product facts change: they were checked on the date shown, against the sources listed in the last section; check them again before use. Provided "as is", without warranty; not legal, compliance, security or procurement advice. Full text: [DISCLAIMER.md](../DISCLAIMER.md).
 
@@ -32,20 +32,20 @@
 
 ## 2. Profile
 
-`meta_llama_aws` `extends` the `aws` cloud profile and runs the server as an ECS service, with Bedrock as the inference provider and pgvector for vector storage (`distribution/run.yaml`).
+`ogx_aws` `extends` the `aws` cloud profile and runs the server as an ECS service (private subnets, reachable only from the E2A services' security group). Its providers are Bedrock for inference, pgvector for vector stores, S3 for files, and PostgreSQL for server state (`providers/ogx/distribution/config.yaml`). `meta_llama_aws` is an alias with the same bindings, kept for one release.
 
-| Seam | Binding today (Llama Stack client) | Against OGX 1.x | Migration |
+| Seam | Binding | OGX endpoint (stable in 1.x) | Change from the Llama Stack version |
 |---|---|---|---|
-| `llm_service` | `LlamaStackLLMService`: `chat.completions` | stable `/v1/chat/completions` | client only: the OpenAI SDK (or `ogx_client`) at the server URL |
-| `embedding_model` | `embeddings.create` | stable `/v1/embeddings` | client only |
-| `vector_index` | `vector_stores` plus `vector_io.insert` / `vector_io.query` | `/v1/vector_stores` is stable; `vector_io` calls are **not** in the stable list | rewrite to vector-store files and vector-store search |
-| `guardrail_stage` | `LlamaGuardStage`: `safety.run_shield` with a shield id | shields are replaced by server-side moderation | screen through the server's moderation configuration (or the cloud's guardrail), keep the fail-closed stage |
-| `prompt_registry` | `prompts.retrieve` | stable `/v1/prompts` | client only |
-| `delegated_runtime` | `LlamaStackResponsesRuntime`: the Responses loop | stable `/v1/responses`, with `guardrails` on, MCP tools and `file_search` | client only, add the guardrails flag |
-| `run.yaml` | Llama Stack distribution format, `apis` including `agents` and `safety` | OGX distribution format | rebuild the distribution for OGX; drop `agents` |
-| package extra | `llama-stack-client>=0.7` | `ogx_client` (Python 3.12+, Pydantic 2) or the OpenAI SDK | change the extra |
+| `llm_service` | `OGXLLMService` | `/v1/chat/completions` | the OpenAI SDK instead of `llama-stack-client` |
+| `embedding_model` | `OGXEmbeddingModel` | `/v1/embeddings` | client only |
+| `vector_index` | `OGXVectorIndex` | `/v1/files`, `/v1/vector_stores` (search with `search_mode`) | `vector_io.insert` / `query` (not stable) replaced. Each chunk is one file, so replace and **delete now work** (the old API had no delete). OGX embeds with the store's embedding model. |
+| `guardrail_stage` | `BedrockGuardrailStage` | — | Llama Stack shields were removed by OGX 1.x; E2A's always-on stage is the cloud's guardrail |
+| `prompt_registry` | `OGXPromptRegistry` | `/v1/prompts` | client only (a generic GET: the OpenAI SDK has no prompts resource) |
+| `delegated_runtime` | `OGXResponsesRuntime` | `/v1/responses` | adds the tenant header and, when `ogx_guardrails` is set, OGX's `guardrails` flag |
+| distribution | `config.yaml` (OGX format) | — | `agents` and `safety` dropped; files in S3 and state in PostgreSQL (the service runs more than one task); `server.tenancy.mode: multi` with an upstream-header tenant |
+| package extra | `[ogx]` (`openai`, `boto3`) | — | `[meta-llama]` kept as an alias |
 
-**Recommendation.** Migrate the profile to OGX 1.x as its own code step, and use the **OpenAI SDK** against OGX's stable OpenAI-compatible endpoints for everything but prompts. That reuses the repository's tested OpenAI wire (`OpenAIResponsesLLMService`, `ResponsesAgentRuntime`), removes a dependency on a client that is being renamed, and keeps the profile portable to any OGX inference provider. Rename the profile to `ogx_aws` and keep `meta_llama_aws` as an alias for one release.
+**Tenancy on the wire.** Every call carries `x-tenant-id`: the request's tenant for model calls and the Responses runtime, the namespace for vector stores, and `ogx_service_tenant` for calls with no tenant (embeddings, prompts). The server trusts the header because only the E2A services can reach it; a request without a tenant is refused (401) in `multi` mode.
 
 ## 3. Dispositions that differ from the core
 
@@ -54,7 +54,7 @@
 | Model access | REPLACE transport | OGX's OpenAI-compatible endpoints in front of the chosen provider; the model id is whatever the distribution registers |
 | `DelegatedRuntime` | EXTEND | OGX's server-side Responses loop (MCP tools, `file_search`), bounded by E2A's deadline, read tools only; `_act` stays in E2A. OGX's own agents API is gone, so nothing else is bound. |
 | Guardrail | COMPOSE | OGX's moderation inside the Responses loop (input, generated text and reasoning) **plus** E2A's fail-closed stage on its own model calls. Llama Guard can be the moderation backend when self-hosted. |
-| Tenancy | EXTEND | OGX's tenant partition must be enabled and fed from E2A's verified tenant (an authenticated identity per tenant, not a request field). Then files, vector stores and conversations are tenant-scoped by the server. E2A's own tenant scoping stays. |
+| Tenancy | EXTEND | OGX's tenant partition is enabled (`multi`) and fed from E2A's verified tenant through the upstream header, on a network only E2A's services can reach. Files, vector stores and conversations are then tenant-scoped by the server. E2A's own tenant scoping stays. |
 | Retrieval | REPLACE (gate) | `/v1/vector_stores` with `file_search` on the stable API, one store per tenant (as today) or the tenant partition; E2A keeps `evaluate_answer` |
 | Self-hosted weights | RETAIN responsibility | the customer owns the model lifecycle, capacity, patching and licence compliance (Meta's licence) |
 
@@ -87,10 +87,11 @@ Everything else keeps the core default.
 
 | Item | Status |
 |---|---|
-| `meta_llama_aws` on the Llama Stack client: chat, embeddings, vector stores, shield, prompts, Responses runtime | Implemented: offline replay; the three projects' suites run on this profile |
-| Behaviour against an OGX 1.x server | To validate: the `vector_io` and shield calls are outside OGX's stable API |
-| Migration to OGX 1.x (OpenAI SDK, moderation, vector-store search, distribution) | Documented: recommended follow-up step |
-| Live behaviour | Not covered: needs live tests |
+| `ogx_aws` model calls, structured output, tools, embeddings, refusal route | Implemented: offline replay of the real OpenAI SDK; `check_llm_service` |
+| Vector stores (search, replace, delete), prompts, Responses runtime with tenant header and guardrails flag, tenant ids | Implemented: tests against recorded shapes of OGX's endpoints |
+| The three projects' suites on `ogx_aws` | Implemented: O2C 56 passed (in memory and on the Firestore emulator), reconciliation 50 passed, audit-ai 36 and 39 passed (in memory and on the Cosmos emulator) |
+| Terraform (private ECS service, S3 files bucket, PostgreSQL state) | Implemented: `terraform validate` and plan tests |
+| Behaviour against a live OGX server; the PostgreSQL storage type names; the prompts response shape | To validate |
 
 ## 8. Sources (checked 16 November 2026)
 
@@ -103,3 +104,6 @@ Everything else keeps the core default.
 | Tenant partition and ABAC | OGX blog, "Multi-Tenant AI Infrastructure with OGX" |
 | `ogx_client` and its changes | OGX blog, "The OGX Python SDK Has a New Foundation" |
 | Bedrock provider: credential chain, optional bearer token | OGX docs, "remote::bedrock" provider |
+| Tenancy modes, upstream-header auth; Safety and Shields removed, `moderation_endpoint` | OGX docs, "Configuring a Stack" (config.yaml) |
+| S3 files provider; PostgreSQL storage for production | OGX docs, "remote::s3" files provider; "starter" distribution |
+| Vector store search modes, embedding model per store | OGX docs, "File Operations and Vector Store Integration" |

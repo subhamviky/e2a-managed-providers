@@ -9,7 +9,7 @@ variable "region" {
 
 variable "image" {
   type        = string
-  description = "Llama Stack server image with distribution/run.yaml at /config (built and pushed to ECR by CI)."
+  description = "OGX server image with distribution/config.yaml at /config (built and pushed to ECR by CI)."
 }
 
 variable "bedrock_model_ids" {
@@ -37,8 +37,10 @@ variable "pgvector_password_secret_arn" {
   type = string
 }
 
-variable "llama_guard_url" {
-  type = string
+variable "moderation_endpoint" {
+  type        = string
+  default     = ""
+  description = "OpenAI-compatible moderation endpoint for OGX Responses guardrails; empty turns them off."
 }
 
 variable "desired_count" {

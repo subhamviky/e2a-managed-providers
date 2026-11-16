@@ -21,34 +21,34 @@ flowchart LR
   LLM --> A[Claude: Bedrock / Platform on AWS]
   LLM --> O[OpenAI on Azure]
   LLM --> G[Gemini on Vertex]
-  LLM --> M[Llama Stack]
-  GOV --> GR[Bedrock Guardrails / Content Safety / Model Armor / Llama Guard]
+  LLM --> M[OGX, formerly Llama Stack]
+  GOV --> GR[Bedrock Guardrails / Content Safety / Model Armor]
   RAG --> V[S3 Vectors / AI Search / Vector Search / vector_io]
   STORE --> S[DynamoDB / Cosmos DB / Firestore]
 ```
 
 ## Seam map
 
-| E2A seam | Anthropic on AWS | OpenAI on Azure | Google on GCP | Meta (Llama Stack) on AWS |
+| E2A seam | Anthropic on AWS | OpenAI on Azure | Google on GCP | OGX (Llama) on AWS |
 |---|---|---|---|---|
-| `BaseLLMAgentService` | `BedrockClaudeLLMService`, `ClaudePlatformAWSLLMService` (anthropic SDK) | `AzureOpenAIResponsesLLMService` (openai SDK, v1 endpoint) | `VertexGeminiLLMService` (google-genai) | `LlamaStackLLMService` (llama-stack-client) |
-| `BaseEmbeddingModel` | Titan Text Embeddings V2 | text-embedding-3-large | gemini-embedding-001 | Llama Stack embeddings |
-| `BaseVectorIndex` | S3 Vectors (vector-only; the reranker adds keyword relevance) | Azure AI Search (native hybrid) | Vertex Vector Search (dense + sparse) | Llama Stack vector_io (hybrid) |
+| `BaseLLMAgentService` | `BedrockClaudeLLMService`, `ClaudePlatformAWSLLMService` (anthropic SDK) | `AzureOpenAIResponsesLLMService` (openai SDK, v1 endpoint) | `VertexGeminiLLMService` (google-genai) | `OGXLLMService` (openai SDK at OGX) |
+| `BaseEmbeddingModel` | Titan Text Embeddings V2 | text-embedding-3-large | gemini-embedding-001 | OGX embeddings |
+| `BaseVectorIndex` | S3 Vectors (vector-only; the reranker adds keyword relevance) | Azure AI Search (native hybrid) | Vertex Vector Search (dense + sparse) | OGX vector stores (hybrid search) |
 | reranker (`_rerank`) | Bedrock Rerank (Cohere 3.5) | semantic ranker | Vertex AI Ranking API | – |
 | fully managed RAG (optional) | Bedrock Knowledge Bases | – | – | – |
-| `IngressStage` (firewall) | Bedrock Guardrails | Content Safety Prompt Shields | Model Armor | Llama Guard shield |
-| `BasePromptRegistry` | Bedrock Prompt Management | – | – | Llama Stack prompts |
+| `IngressStage` (firewall) | Bedrock Guardrails | Content Safety Prompt Shields | Model Armor | Bedrock Guardrails |
+| `BasePromptRegistry` | Bedrock Prompt Management | – | – | OGX prompts |
 | `MCPToolService` via gateway | AgentCore Gateway | API Management | IAP / Apigee | (ingress) |
 | model-side MCP | MCP connector (Platform on AWS only) | Responses `mcp` tool | – | Responses `mcp` tool |
-| delegated runtime | AgentCore Runtime / Claude Managed Agents | Responses-API agent | Agent Engine | Llama Stack Responses |
+| delegated runtime | AgentCore Runtime / Claude Managed Agents | Responses-API agent | Agent Engine | OGX Responses |
 | idempotency / checkpoint | DynamoDB conditional writes | Cosmos DB ETag | Firestore preconditions | DynamoDB |
 | `BaseObservability` | OTel → ADOT → CloudWatch/X-Ray | OTel → App Insights | OTel → Cloud Trace | OTel → CloudWatch |
-| `BaseInfraProvisioner` | Terraform (aws) + `ant apply` | Terraform (azurerm) | Terraform (google), reuses E2A's GCP reference | Terraform (aws) + ECS for Llama Stack |
+| `BaseInfraProvisioner` | Terraform (aws) + `ant apply` | Terraform (azurerm) | Terraform (google), reuses E2A's GCP reference | Terraform (aws) + ECS for OGX |
 | `BasePipeline` | ECR, Lambda/ECS rollout, OIDC | ACR, Container Apps revisions | Artifact Registry, Cloud Run split | as AWS |
 
 Platform services (embeddings, vectors, guardrails, gateways, stores) live under
 `clouds/<cloud>/` because they belong to the cloud, not to the model vendor: the Anthropic
-and Meta profiles on AWS bind the same classes.
+and OGX profiles on AWS bind the same classes.
 
 ## Who owns what (one owner per runtime concern)
 
