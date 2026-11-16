@@ -1,0 +1,28 @@
+@startuml
+!include ../../common/style.puml
+title Model call failures: one retry authority, a refusal is not a fault
+autonumber "<b>0."
+participant "BaseLLMAgentService\n.process_inference" as S
+participant "Provider API\n(SDK retries = 0)" as P
+participant "Fallback route\n(model_routes)" as F
+S -> P : request (remaining deadline)
+alt throttled / overloaded / transient
+  P --> S : 429 / 529 / 5xx (Retry-After)
+  S -> S : _classify_error -> ErrorClass(kind, retry_after)
+  S -> S : wait within the request deadline,\nbounded attempts, circuit state updated once
+  S -> P : retry
+else refusal
+  P --> S : refusal signal (stop reason / content filter)
+  S -> S : ADAPT: ModelRefusal
+  alt provider-native fallback declared (refusal_fallback_server)
+    P --> S : answer from the provider's fallback model
+  else a model_routes entry for kind = refusal
+    S -> F : same request to the routed llm_service
+    F --> S : answer or refusal
+  end
+else context overflow / deterministic
+  P --> S : 400
+  S --> S : no retry: typed failure
+end
+S --> S : canonical result: SUCCESS | REFUSED | FAILED\n(+ usage, provider request id)
+@enduml

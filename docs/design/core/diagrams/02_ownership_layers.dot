@@ -1,0 +1,24 @@
+digraph G {
+  graph [rankdir=TB, compound=true, fontname="DejaVu Sans", fontsize=13, labelloc=t, label=<<b>Who owns what: four owners, never merged</b>>, fontcolor="#1F3864", nodesep=0.3, ranksep=0.4, pad=0.25];
+  node [shape=box, style="rounded,filled", fillcolor="#F4F8FC", color="#1F3864", fontname="DejaVu Sans", fontsize=10.5, fontcolor="#1F3864", margin="0.14,0.06"];
+  edge [color="#2E4A6B", fontname="DejaVu Sans", fontsize=9.5];
+  client [label="Caller (user, system, schedule)", shape=ellipse, fillcolor="#FFFFFF"];
+  subgraph cluster_domain { label=<<b>Application / domain</b>>; style="rounded,filled"; fillcolor="#FBF3E6"; color="#D4A017"; fontcolor="#7A5A00";
+    dom [label="Business rules, workflow declaration,\nsystem of record (orders, ledger, findings)"];
+  }
+  subgraph cluster_kernel { label=<<b>E2A enterprise kernel (variable size)</b>>; style="rounded,filled"; fillcolor="#EAF2FA"; color="#2E75B6"; fontcolor="#1F3864";
+    k1 [label="Request context: identity at ingress, tenant, deadline"];
+    k2 [label="Workflow claim, idempotency, checkpoint / resume, approval"];
+    k3 [label="Material-effect boundary (io_modify), physical outcome,\nconfirmation, reconciliation"];
+    k4 [label="Governance order, typed outcomes, telemetry enrichment"];
+  }
+  subgraph cluster_ai { label=<<b>Frontier capability (model provider)</b>>; style="rounded,filled"; fillcolor="#E6F4F5"; color="#0F7C8C"; fontcolor="#0F5C66";
+    ai [label="Model inference and native features:\nstructured output, reasoning, caching,\nrefusal signal, managed agents, MCP"];
+  }
+  subgraph cluster_cloud { label=<<b>Cloud capability (hyperscaler)</b>>; style="rounded,filled"; fillcolor="#F4F8FC"; color="#1F3864";
+    cl [label="Identity verification, state stores, brokers,\nsecrets, search and ranking, safety classifiers,\ntelemetry, compute, IaC"];
+  }
+  client -> k1; k1 -> k2 -> k3; k2 -> dom [label="steps"]; k3 -> dom [label="effects, confirmed"];
+  k2 -> ai [label="inference\n(seam: llm_service)"]; k2 -> cl [label="ports\n(seams: stores, broker, ...)"];
+  ai -> cl [style=dashed, label="hosted on, when\nthe cloud operates it"];
+}

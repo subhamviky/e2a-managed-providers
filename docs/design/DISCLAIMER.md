@@ -1,0 +1,13 @@
+# Disclaimer
+
+**Read this before using any document, profile or line of code in this repository.**
+
+1. **Independent reference material.** This repository and its design documents are independent, personal reference material for studying software architecture: how managed AI and cloud services can be placed within the E2A framework. They are not a product, a service offering or a commercial recommendation.
+2. **No affiliation or endorsement.** There is no affiliation with, sponsorship by, endorsement by or partnership with Anthropic, OpenAI, Google, Meta, Amazon / Amazon Web Services, Microsoft, or any other company whose products are named. Nothing here states or implies that any of them has reviewed, approved or supports this material.
+3. **Not a substitute.** Nothing here replaces, competes with or substitutes for any provider's products, services, documentation, terms, support or professional advice. Where a document says a managed service "replaces" or is "extended by" an E2A responsibility, it describes an architectural decision inside an application. It does not compare products or judge their quality.
+4. **Trademarks.** Product and company names are trademarks or registered trademarks of their respective owners. They are used only to identify the services discussed (nominative use).
+5. **Facts change.** Product names, features, availability, regions, preview or general-availability status, quotas, pricing and terms change often. Each document records the date and source of the facts it states. Before relying on any of them, check the provider's current official documentation and your own agreements.
+6. **No warranty.** Everything is provided "as is", without warranty of any kind, express or implied, including fitness for a particular purpose, accuracy, completeness or non-infringement. The licence of this repository (Apache 2.0) governs the code.
+7. **Not advice.** Nothing here is legal, regulatory, compliance, security, privacy, procurement or financial advice. Data residency, retention, model licences, export rules and the suitability of any service for a given workload must be assessed by qualified people for each deployment.
+8. **Provider terms govern.** Use of any provider's service is governed solely by that provider's terms, policies and acceptable-use rules and by the user's own agreements with that provider. The code in this repository makes calls only with the user's own credentials, at the user's own responsibility.
+9. **No live proof.** Unless a document states otherwise for a specific item, the evidence in this repository comes from contract tests, emulators and recorded or replayed wire traffic. It is not evidence of production behaviour of any provider's service.

@@ -1,0 +1,17 @@
+digraph G {
+  graph [rankdir=LR, fontname="DejaVu Sans", fontsize=13, labelloc=t, label=<<b>Retrieval: fully managed, or composed behind E2A's ports</b>>, fontcolor="#1F3864", nodesep=0.3, ranksep=0.5, pad=0.25];
+  node [shape=box, style="rounded,filled", fillcolor="#F4F8FC", color="#1F3864", fontname="DejaVu Sans", fontsize=10, fontcolor="#1F3864", margin="0.12,0.05"];
+  edge [color="#2E4A6B", fontname="DejaVu Sans", fontsize=9];
+  q [label="BaseRAGPipeline.retrieve\n(query, tenant_id)", shape=ellipse, fillcolor="#FFFFFF"];
+  subgraph cluster_m { label=<<b>REPLACE: one managed retrieval service</b>>; style="rounded,filled"; fillcolor="#E6F4F5"; color="#0F7C8C"; fontcolor="#0F5C66";
+    m [label="managed RAG (rag_pipeline seam)\ningestion, chunking, embedding,\nsearch, ranking, citations"];
+  }
+  subgraph cluster_c { label=<<b>COMPOSE: E2A's pipeline over managed parts</b>>; style="rounded,filled"; fillcolor="#EAF2FA"; color="#2E75B6"; fontcolor="#1F3864";
+    e [label="embedding_model"]; v [label="vector_index\n(tenant namespace)"]; r [label="reranker"];
+    e -> v -> r;
+  }
+  ev [label="evaluate_answer\n(RETAIN: grounding threshold,\nevidence required)", fillcolor="#FBF3E6", color="#B7791F", fontcolor="#7A5A00"];
+  q -> m [label="tenant isolation, evidence ids\nand failure visibility proven"];
+  q -> e [label="otherwise"];
+  m -> ev; r -> ev;
+}

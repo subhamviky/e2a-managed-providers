@@ -6,6 +6,18 @@
 Frontier-provider managed services (Anthropic, OpenAI, Google, Meta) behind the
 vendor-neutral E2A contracts, chosen by configuration.
 
+> **Disclaimer.** Independent reference material for studying software architecture. There is
+> no affiliation with, sponsorship by or endorsement by Anthropic, OpenAI, Google, Meta,
+> Amazon / AWS, Microsoft or any other company named, and nothing here is a substitute for any
+> provider's products, services, documentation, terms or support. Product names are trademarks
+> of their owners, used only to identify the services. Facts change: check the provider's
+> current documentation. Provided "as is", without warranty; not legal, compliance, security or
+> procurement advice. Use of any provider's service is governed solely by that provider's terms.
+> Full text: [docs/design/DISCLAIMER.md](docs/design/DISCLAIMER.md).
+
+**Design documents:** how each provider's managed services fit E2A (replaced, extended or left
+to E2A), with HLD, LLD and diagrams, in [docs/design](docs/design/README.md).
+
 The three projects of the Order-to-Cash landscape
 ([order-to-cash-agentic-ai](https://github.com/subhamviky/order-to-cash-agentic-ai),
 [aws-reconciliation-engine](https://github.com/subhamviky/aws-reconciliation-engine),
@@ -178,5 +190,7 @@ Firestore and Cosmos DB emulators. Start them and set `DYNAMODB_LOCAL_ENDPOINT`,
 Apache License 2.0 ([LICENSE](LICENSE)).
 
 This is an independent project. It is not affiliated with, endorsed by or sponsored by Anthropic, OpenAI, Google, Meta, Amazon Web Services, Microsoft or Cohere. Their names and services are referred to only to describe what this code integrates with, and they are the trademarks of their respective owners.
+
+The full disclaimer is in [docs/design/DISCLAIMER.md](docs/design/DISCLAIMER.md).
 
 Provider services, APIs, models, features, regions and availability may change over time. The integrations and architecture examples in this repository are reference implementations and should be validated against the respective provider's current official documentation and terms before production use.

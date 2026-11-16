@@ -1,0 +1,24 @@
+digraph G {
+  graph [rankdir=TB, fontname="DejaVu Sans", fontsize=13, labelloc=t, label=<<b>Deciding the disposition of one E2A responsibility</b>>, fontcolor="#1F3864", nodesep=0.35, ranksep=0.45, pad=0.25];
+  node [shape=box, style="rounded,filled", fillcolor="#F4F8FC", color="#1F3864", fontname="DejaVu Sans", fontsize=10.5, fontcolor="#1F3864", margin="0.14,0.07"];
+  edge [color="#2E4A6B", fontname="DejaVu Sans", fontsize=9.5];
+  r [label="An E2A responsibility\n(a class, a hook, a port, a stage)", shape=ellipse, fillcolor="#FFFFFF"];
+  q1 [label="Does a managed service of the selected\nprovider or cloud perform it?", shape=diamond, fillcolor="#FFFFFF", fontsize=10];
+  q2 [label="Does it meet every point of the\nreplacement gate (Section 2.3)?", shape=diamond, fillcolor="#FFFFFF", fontsize=10];
+  q3 [label="Is only a format or protocol\ntranslation missing?", shape=diamond, fillcolor="#FFFFFF", fontsize=10];
+  q4 [label="Does the responsibility span the\nmodel provider AND the cloud?", shape=diamond, fillcolor="#FFFFFF", fontsize=10];
+  retain [label="RETAIN\nE2A's template method or port\nstays authoritative", fillcolor="#FBF3E6", color="#B7791F", fontcolor="#7A5A00"];
+  replace [label="REPLACE\nbind the managed service directly;\nremove E2A's duplicate", fillcolor="#E6F4F5", color="#0F7C8C", fontcolor="#0F5C66"];
+  adapt [label="ADAPT\na thin codec or client adapter;\nno business logic", fillcolor="#EAF2FA", color="#2E75B6"];
+  compose [label="COMPOSE\none seam, owners separated\n(model provider + cloud + E2A)", fillcolor="#EAF2FA", color="#2E75B6"];
+  extend [label="EXTEND\nmanaged execution, surrounded by\nE2A policy, state, outcome or confirmation", fillcolor="#EAF2FA", color="#2E75B6"];
+  r -> q1;
+  q1 -> retain [label="no"];
+  q1 -> q2 [label="yes"];
+  q2 -> replace [label="yes"];
+  q2 -> q3 [label="no"];
+  q3 -> adapt [label="yes"];
+  q3 -> q4 [label="no"];
+  q4 -> compose [label="yes"];
+  q4 -> extend [label="no"];
+}
