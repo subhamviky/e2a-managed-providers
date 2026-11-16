@@ -177,7 +177,6 @@ Firestore and Cosmos DB emulators. Start them and set `DYNAMODB_LOCAL_ENDPOINT`,
 
 Apache License 2.0 ([LICENSE](LICENSE)).
 
-This is an independent project. It is not affiliated with, endorsed by or sponsored by
-Anthropic, OpenAI, Google, Meta, Amazon Web Services, Microsoft or Cohere. Their names and
-services are referred to only to describe what this code integrates with, and they are the
-trademarks of their owners.
+This is an independent project. It is not affiliated with, endorsed by or sponsored by Anthropic, OpenAI, Google, Meta, Amazon Web Services, Microsoft or Cohere. Their names and services are referred to only to describe what this code integrates with, and they are the trademarks of their respective owners.
+
+Provider services, APIs, models, features, regions and availability may change over time. The integrations and architecture examples in this repository are reference implementations and should be validated against the respective provider's current official documentation and terms before production use.
