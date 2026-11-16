@@ -1,0 +1,21 @@
+digraph G {
+  graph [rankdir=LR, compound=true, fontname="DejaVu Sans", fontsize=13, labelloc=t, label=<<b>Gemini Developer API: interfaces, hosted tools and managed agents</b>>, fontcolor="#1F3864", nodesep=0.3, ranksep=0.55, pad=0.25];
+  node [shape=box, style="rounded,filled", fillcolor="#F4F8FC", color="#1F3864", fontname="DejaVu Sans", fontsize=10, fontcolor="#1F3864", margin="0.12,0.05"];
+  edge [color="#2E4A6B", fontname="DejaVu Sans", fontsize=9];
+  subgraph cluster_e2a { label=<<b>E2A service (any cloud)</b>>; style="rounded,filled"; fillcolor="#EAF2FA"; color="#2E75B6";
+    llm [label="llm_service\nVertexGeminiLLMService family\n(API-key client)"];
+    gov [label="E2A governance stages\n(always on)"];
+    act [label="_act through io_modify"];
+  }
+  key [label="API key\n(secret store)", fillcolor="#FBF3E6", color="#D4A017", fontcolor="#7A5A00"];
+  subgraph cluster_g { label=<<b>Gemini Developer API (Google operates)</b>>; style="rounded,filled"; fillcolor="#E6F4F5"; color="#0F7C8C"; fontcolor="#0F5C66";
+    gc [label="generateContent (legacy, supported)\nused by E2A today"];
+    ia [label="Interactions API (recommended)\nstored by default: set store=false"];
+    mcp [label="remote MCP (mcp_server)\nheaders, allowed_tools"];
+    fs [label="File Search stores\n(gate: one per tenant)"];
+    ma [label="managed agents\nPUBLIC PREVIEW"];
+  }
+  ext [label="MCP server\n(scopes the tenant itself)", fillcolor="#FFFFFF"];
+  llm -> key; key -> gc; llm -> ia [style=dashed, xlabel="follow-up"];
+  ia -> mcp [style=dashed]; mcp -> ext; ia -> fs [style=dashed]; ia -> ma [style=dotted];
+}

@@ -1,0 +1,30 @@
+digraph G {
+  graph [rankdir=LR, compound=true, fontname="DejaVu Sans", fontsize=13, labelloc=t, label=<<b>Gemini on Google Cloud: the implemented google_vertex profile, and use from AWS or Azure</b>>, fontcolor="#1F3864", nodesep=0.3, ranksep=0.55, pad=0.25];
+  node [shape=box, style="rounded,filled", fillcolor="#F4F8FC", color="#1F3864", fontname="DejaVu Sans", fontsize=10, fontcolor="#1F3864", margin="0.12,0.05"];
+  edge [color="#2E4A6B", fontname="DejaVu Sans", fontsize=9];
+  subgraph cluster_gcp { label=<<b>E2A service on Google Cloud (google_vertex extends gcp)</b>>; style="rounded,filled"; fillcolor="#EAF2FA"; color="#2E75B6";
+    llm [label="VertexGeminiLLMService\ndefault gemini-3.8-flash"];
+    emb [label="VertexGeminiEmbeddingModel"];
+    rt [label="VertexAgentEngineRuntime"];
+    tl [label="tools host-side\nIAPGatewayTool"];
+    ret [label="retrieval\nVertexVectorSearchIndex, Ranking"];
+    gs [label="ModelArmorStage"];
+  }
+  subgraph cluster_x { label=<<b>E2A service on AWS or Azure (pattern 4)</b>>; style="rounded,filled"; fillcolor="#F2F2F2"; color="#7F7F7F";
+    xl [label="VertexGeminiLLMService\n(external-account credential)"];
+    xi [label="local index, stores, broker\n(aws / azure profile)"];
+  }
+  adc [label="ADC: service account", fillcolor="#FBF3E6", color="#D4A017", fontcolor="#7A5A00"];
+  wif [label="workload identity federation\n(AWS role / Azure managed identity)", fillcolor="#FBF3E6", color="#D4A017", fontcolor="#7A5A00"];
+  subgraph cluster_ap { label=<<b>Gemini Enterprise Agent Platform (Google operates)</b>>; style="rounded,filled"; fillcolor="#E6F4F5"; color="#0F7C8C"; fontcolor="#0F5C66";
+    gem [label="Gemini models\ngenerateContent / Interactions"];
+    vs [label="Vector Search + Ranking"];
+    arm [label="Model Armor"];
+    art [label="Agent Runtime (ADK agent)"];
+    agw [label="Agent Gateway\n(Cloud Run: Limited Preview)"];
+  }
+  llm -> adc; emb -> adc; adc -> gem; rt -> art; gs -> arm; ret -> vs; tl -> iap;
+  iap [label="MCP servers on Cloud Run\nbehind IAP", fillcolor="#FFFFFF"];
+  xl -> wif; wif -> gem;
+  art -> agw [style=dashed];
+}

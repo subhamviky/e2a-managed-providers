@@ -26,7 +26,7 @@ bindings:
   infra_provisioner: e2a_managed.clouds.gcp.services:GCPManagedInfraProvisioner
   release_pipeline: e2a_managed.clouds.gcp.services:GCPReleasePipeline
 config:
-  model_id: ${LLM_MODEL_ID:-gemini-2.5-pro}
+  model_id: ${LLM_MODEL_ID:-gemini-3.8-flash}   # gemini-2.5-pro retired on Agent Platform 20 Oct 2026
   fallback_model_id: ${LLM_FALLBACK_MODEL_ID}
   reasoning_effort: ${LLM_REASONING_EFFORT:-medium}
   temperature: ${LLM_TEMPERATURE:-0.0}

@@ -51,8 +51,8 @@ async def test_vendor_parameter_passed_per_call_wins_over_the_profile(profile, p
     body = rt.requests[-1]["body"]
     value = body.get(path[0], {}).get(path[1])
     if expected is None:
-        assert value                                  # gemini-2.5: thinking budget derived from "high"
-        assert value.get("thinkingBudget", value.get("thinking_budget")) == 24576
+        assert value                                  # gemini-3.8-flash: a thinking level, not a budget
+        assert value.get("thinkingLevel", value.get("thinking_level")) == "HIGH"
     else:
         assert value == expected
 
@@ -145,3 +145,25 @@ def test_server_side_fallback_is_sent_only_by_a_class_that_declares_it():
     other = WithServerFallback.__new__(WithServerFallback)
     req = other._build_request([SYSTEM, USER], "m", None, 64, None, None, None, {}, {})
     assert req["fallbacks"] == "default" and FALLBACK_BETA in req["betas"]
+
+
+@pytest.mark.parametrize("model,effort,level", [
+    ("gemini-3.8-flash", "max", "HIGH"),           # no XHIGH on this model: its highest instead
+    ("gemini-3.8-flash", "xhigh", "HIGH"),
+    ("gemini-3.8-flash", "minimal", "LOW"),        # no MINIMAL: its lowest
+    ("gemini-4-carbon", "medium", "MEDIUM"),
+    ("gemini-4-hydrogen", "max", "XHIGH"),
+    ("gemini-3.6-flash", "minimal", "MINIMAL"),
+    ("gemini-3-pro-preview", "medium", "LOW"),     # low or high only: lowered, never raised
+    ("gemini-future-model", "high", "HIGH"),       # unknown model: low, medium, high
+])
+def test_gemini_thinking_level_is_one_the_model_accepts(model, effort, level):
+    from e2a_managed.providers.google_vertex.llm_service import thinking_level
+    assert thinking_level(model, effort) == level
+
+
+async def test_gemini_2_5_still_gets_a_thinking_budget():
+    svc, rt = offline_llm_service("google_vertex", lambda m: "ok", model_id="gemini-2.5-flash")
+    await svc.process_inference([SYSTEM, USER], tenant_id="acme", reasoning_effort="high")
+    cfg = rt.requests[-1]["body"]["generationConfig"]["thinkingConfig"]
+    assert cfg.get("thinkingBudget", cfg.get("thinking_budget")) == 24576

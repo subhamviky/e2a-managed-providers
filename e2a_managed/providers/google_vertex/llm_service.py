@@ -9,7 +9,9 @@ Federation from GitHub in CI). Project and location from config (`gcp_project`,
 
 Mapping decisions
   * system messages -> system_instruction; tool results are answered by function NAME.
-  * reasoning_effort -> thinking_level (Gemini 3+) or a thinking_budget (Gemini 2.5).
+  * reasoning_effort -> thinking_level (Gemini 3+) or a thinking_budget (Gemini 2.5). Each model
+    accepts only some levels (Google, "Thinking"): a level the model does not accept is lowered
+    to the nearest one it does (E2A's "max" is the model's highest), never sent as is.
   * E2A cache handle -> `cached_content` only when a Vertex context cache name is given
     per call (kwargs['cached_content']); Gemini also caches implicitly.
   * response_schema -> response_mime_type=application/json + response_json_schema.
@@ -26,6 +28,31 @@ from ...managed_llm import ManagedLLMService
 from ...managed_rag import ManagedEmbeddingModel
 
 _BUDGET = {"minimal": 0, "low": 1024, "medium": 8192, "high": 24576, "xhigh": 32768, "max": -1}
+
+# thinking levels each model accepts (Google, "Thinking", checked 16 Nov 2026); longest prefix first.
+# A model not listed is assumed to accept low, medium and high, the set every current model shares.
+_ORDER = ("minimal", "low", "medium", "high", "xhigh")
+_LEVELS = {
+    "gemini-4-hydrogen": ("low", "medium", "high", "xhigh"),
+    "gemini-3.6-flash": ("minimal", "low", "medium", "high"),
+    "gemini-3.5-flash-lite": ("minimal", "low", "medium", "high"),
+    "gemini-3.1-flash-lite": ("minimal", "low", "medium", "high"),
+    "gemini-3-flash-preview": ("minimal", "low", "medium", "high"),
+    "gemini-3-pro-preview": ("low", "high"),
+}
+_DEFAULT_LEVELS = ("low", "medium", "high")
+
+
+def thinking_level(model_id: str, effort: str) -> str:
+    """E2A's effort as a thinking_level the model accepts: the requested level when it does,
+    else the nearest lower one (cost never rises), else the model's lowest. "max" is the highest."""
+    levels = next((v for k, v in sorted(_LEVELS.items(), key=lambda kv: -len(kv[0]))
+                   if model_id.startswith(k)), _DEFAULT_LEVELS)
+    if effort == "max":
+        return levels[-1].upper()
+    rank = _ORDER.index(effort) if effort in _ORDER else _ORDER.index("medium")
+    lower = [lvl for lvl in levels if _ORDER.index(lvl) <= rank]
+    return (lower[-1] if lower else levels[0]).upper()
 
 
 def vertex_client(config: Dict[str, Any], kwargs: Dict[str, Any] = None, **http: Any):
@@ -67,7 +94,7 @@ class VertexGeminiLLMService(ManagedLLMService):
         effort = self._effort(self._param("reasoning_effort", config, kwargs))
         if effort:
             cfg["thinking_config"] = ({"thinking_budget": _BUDGET.get(effort, 8192)} if model_id.startswith("gemini-2")
-                                      else {"thinking_level": effort.upper() if effort != "max" else "XHIGH"})
+                                      else {"thinking_level": thinking_level(model_id, effort)})
         if kwargs.get("response_schema"):
             cfg["response_mime_type"] = "application/json"
             cfg["response_json_schema"] = kwargs["response_schema"]

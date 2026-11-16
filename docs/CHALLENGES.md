@@ -22,7 +22,7 @@
 | Llama Stack `run.yaml` schema | the project changes fast (partly renamed OGX in 2026) | `providers/meta_llama/distribution/run.yaml` |
 | Vertex Vector Search delete | `removeDatapoints` takes ids only; ids are remembered per process, else `<doc>#0..N` | `clouds/gcp/services.py` |
 | Agent Engine `:query` and AgentCore payload contracts | defined by the agent code you deploy; this repo states the contract it expects | `clouds/*/…Runtime` docstrings |
-| Model ids (`claude-opus-5-5`, `gpt-5`, `gemini-2.5-pro`, `meta.llama4-maverick…`) | availability differs per region and account | profiles (all overridable by env) |
+| Model ids (`claude-opus-5-5`, `gpt-5`, `gemini-3.8-flash`, `meta.llama4-maverick…`) | availability differs per region and account | profiles (all overridable by env) |
 | Azure OpenAI `reasoning`, `prompt_cache_key` on your deployment | supported per model/deployment | `providers/openai_azure/llm_service.py` |
 
 ## Platform gaps (what a profile cannot do)
