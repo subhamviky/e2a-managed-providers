@@ -1,0 +1,27 @@
+@startuml
+!include ../../common/style.puml
+title Calling Gemini on Agent Platform from AWS or Azure through workload identity federation
+autonumber "<b>0."
+participant "E2A agent\n(AWS or Azure)" as A
+participant "VertexGeminiLLMService\n(google-genai, ADC)" as L
+participant "AWS STS or\nAzure managed identity" as C
+participant "Google STS\n(workload identity pool)" as S
+participant "IAM credentials\n(service account impersonation)" as I
+participant "Agent Platform\n(Gemini)" as G
+A -> L : infer (tenant, deadline)
+L -> C : workload credential\n(AWS role / Azure token)
+C --> L : signed request / token
+L -> S : token exchange\n(external-account configuration, no key)
+S --> L : federated token\n(attribute conditions checked)
+L -> I : generate access token\nfor the dedicated service account
+I --> L : short-lived access token
+L -> G : generateContent\n(location us / eu / global)
+alt answer
+  G --> L : candidates
+  L --> A : canonical result; E2A validates
+else SAFETY finish
+  G --> L : finishReason SAFETY
+  L --> A : ModelRefusal → model_routes
+end
+note over L, I : tokens are cached until expiry;\nonly the model call crosses clouds
+@enduml

@@ -21,7 +21,7 @@ Each document exists as Markdown (read here) and as a Word file beside it (for s
 | [Core design](core/E2A_MANAGED_PROVIDERS_CORE_DESIGN.md) | Disposition model and replacement gate; HLD (owners, hosting patterns, capability packs); LLD (seams, profile composition, kernel dispositions); common sequences; failure, security and evidence models | [docx](core/E2A_Managed_Providers_Core_Design.docx) |
 | [Anthropic](anthropic/README.md) | Four documents by operator: Claude operated by Anthropic (Claude API, Claude Platform on AWS, Google Cloud Anthropic managed); Claude on Amazon Bedrock; Claude on Google Cloud (Google managed); Claude in Microsoft Foundry | in the folder |
 | [OpenAI](openai/README.md) | Four documents by operator: OpenAI API (OpenAI operates); OpenAI in Microsoft Foundry (Implemented, `openai_azure`); OpenAI on Amazon Bedrock; OpenAI on Google Cloud | in the folder |
-| Google Gemini | *planned (D-4)*: Gemini API; Google Cloud agent platform; use from AWS and Azure | |
+| [Google Gemini](gemini/README.md) | Two documents: Gemini Developer API; Gemini on Google Cloud (Implemented, `google_vertex`), including use from AWS and Azure | in the folder |
 | Meta Llama | *planned (D-5)*: hyperscaler-managed Llama; self-hosted with Llama Stack / OGX | |
 
 ## Evidence labels
