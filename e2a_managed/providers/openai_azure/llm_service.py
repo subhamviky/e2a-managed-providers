@@ -25,9 +25,33 @@ from ...capabilities import Capability as C
 from ...codec import messages_to_openai_responses, openai_responses_to_result, tools_to_openai_responses
 from ...managed_llm import ManagedLLMService
 from ...managed_rag import ManagedEmbeddingModel
-from e2a import resolve_config
+from e2a import ErrorClass, ModelRefusal, classify_error, resolve_config
 
 COGNITIVE_SCOPE = "https://cognitiveservices.azure.com/.default"
+
+# OpenAI "Error codes": 429s that waiting will not clear (credit or spend or usage limit). Their
+# error.type can be `insufficient_quota`. Retried as throttling they would only burn the deadline.
+ACCOUNT_LIMIT_CODES = frozenset({"credit_balance_exhausted", "organization_spend_limit_exceeded",
+                                 "project_spend_limit_exceeded", "organization_usage_limit_exceeded"})
+
+
+def openai_error_code(error: BaseException) -> tuple:
+    """(code, type) of an OpenAI SDK error: from the parsed attributes, else the raw body."""
+    body = getattr(error, "body", None)
+    inner = body.get("error") if isinstance(body, dict) and isinstance(body.get("error"), dict) else body
+    inner = inner if isinstance(inner, dict) else {}
+    return (getattr(error, "code", None) or inner.get("code"), getattr(error, "type", None) or inner.get("type"))
+
+
+def classify_openai_error(error: BaseException) -> ErrorClass:
+    """E2A's classification, except an account limit (spend, credit, usage) is not retried:
+    it is `deterministic`, so it fails at once, is logged with its kind, and is not counted
+    as an outage by the circuit."""
+    status = getattr(error, "status_code", None)
+    code, kind = openai_error_code(error)
+    if status == 429 and (code in ACCOUNT_LIMIT_CODES or kind == "insufficient_quota"):
+        return ErrorClass("deterministic")
+    return classify_error(error)
 
 
 def azure_v1_base_url(endpoint: str) -> str:
@@ -72,6 +96,9 @@ class OpenAIResponsesLLMService(ManagedLLMService):
     def _effort(self, effort):
         return "high" if effort == "max" else effort         # E2A's "max" is the top documented level
 
+    def _classify_error(self, error):
+        return classify_openai_error(error)
+
     def _build_request(self, messages, model_id, temperature, max_tokens, tools, stop_sequences,
                        cache_handle, config, kwargs) -> Dict[str, Any]:
         instructions, items = messages_to_openai_responses(messages)
@@ -106,7 +133,36 @@ class OpenAIResponsesLLMService(ManagedLLMService):
 
 
 class AzureOpenAIResponsesLLMService(OpenAIResponsesLLMService):
+    """Microsoft Foundry's guardrails (DefaultV2 by default) filter every call. A blocked
+    prompt is HTTP 400 with code `content_filter`; a blocked output is flagged in the
+    response's top-level `content_filters` array (a Foundry extension the SDK does not type).
+    Both are a policy outcome, so E2A reports them as REFUSED (ModelRefusal, routed by
+    `model_routes`), not as a failure."""
     platform = "azure_ai_foundry"
+
+    async def _send(self, client, request):
+        try:
+            return await client.responses.create(**request)
+        except Exception as error:
+            code, _ = openai_error_code(error)
+            if getattr(error, "status_code", None) == 400 and code == "content_filter":
+                raise ModelRefusal(self.provider, str(request.get("model", "")),
+                                   "blocked by the platform's content filter", "content_filter") from error
+            raise
+
+    def _parse(self, response) -> Dict[str, Any]:
+        result = super()._parse(response)
+        filters = getattr(response, "content_filters", None)
+        if filters is None:
+            extra = getattr(response, "model_extra", None) or {}
+            filters = extra.get("content_filters") if isinstance(extra, dict) else None
+        if filters is None and isinstance(response, dict):
+            filters = response.get("content_filters")
+        if any((f.get("blocked") if isinstance(f, dict) else getattr(f, "blocked", False)) for f in filters or []):
+            meta = result.setdefault("metadata", {})
+            meta["stop_reason"], meta["refusal_category"] = "refusal", "content_filter"
+            result["text"] = result.get("text") or "blocked by the platform's content filter"
+        return result
 
     def _build_client(self, config, kwargs):
         from openai import AsyncOpenAI

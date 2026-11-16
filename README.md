@@ -57,7 +57,9 @@ customer runs, here on AWS. `meta_llama_aws` remains for one release as an alias
 Rerank model. A fifth vendor was left out on purpose (see docs/CHALLENGES.md).
 
 `python -m e2a_managed matrix` prints the [capability matrix](docs/CAPABILITY_MATRIX.md),
-generated from the bindings.
+generated from the bindings. `python -m e2a_managed lifecycle <profile>` checks the configured
+model ids against their published retirement dates (`e2a_managed/model_lifecycle.yaml`): a
+retired id fails the release pipeline and CI, and one retiring within 90 days is reported.
 
 ## Switching provider is configuration
 

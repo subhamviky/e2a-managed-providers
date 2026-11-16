@@ -1,0 +1,26 @@
+# Published retirement (end-of-life) dates of model ids the profiles may configure, per platform.
+# A release fails when a configured id is past its date, and warns inside the warning window.
+# Every entry names its source and the day it was checked; check again before relying on it.
+# `retires` is the earliest date the platform gives ("no sooner than", "or later" are noted).
+checked: 2026-11-16
+platforms:
+  agent_platform:          # Google Cloud Gemini Enterprise Agent Platform (formerly Vertex AI)
+    source: Google Cloud, "Model versions and lifecycle"
+    models:
+      gemini-2.5-pro: {retires: 2026-10-20, replacement: gemini-3.8-flash}
+      gemini-2.5-flash: {retires: 2026-10-20, replacement: gemini-3.8-flash}
+      gemini-2.5-flash-lite: {retires: 2026-10-20, replacement: gemini-3.5-flash-lite}
+      gemini-3.7-flash: {retires: 2027-01-28, replacement: gemini-3.8-flash}
+      gemini-3.8-flash: {retires: 2027-09-02, note: "September 2, 2027 or later"}
+      gemini-embedding-001: {retires: 2028-05-20, note: "no sooner than May 20, 2028"}
+  foundry:                 # Microsoft Foundry
+    source: Microsoft Learn, "Model retirement schedule"
+    models:
+      Llama-4-Maverick-17B-128E-Instruct-FP8: {retires: 2026-11-19}
+      Llama-4-Scout-17B-16E-Instruct: {retires: 2027-01-31}
+      Llama-3.3-70B-Instruct: {retires: 2027-01-31}
+  bedrock:                 # Amazon Bedrock (Legacy models: the model card's EOL date)
+    source: AWS, Bedrock model cards (Llama 4 Maverick 17B Instruct; Llama 3.3 70B Instruct)
+    models:
+      meta.llama4-maverick-17b-instruct-v1:0: {retires: 2027-03-30}
+      meta.llama3-3-70b-instruct-v1:0: {retires: 2027-03-30}

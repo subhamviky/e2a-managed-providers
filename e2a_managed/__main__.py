@@ -5,6 +5,8 @@
     env <profile>            the environment variables a deployment of <profile> sets (.env template)
     reference                configuration reference for every managed key (markdown)
     matrix                   capability matrix of all profiles (markdown, generated from the bindings)
+    lifecycle <profile>      configured model ids against their published retirement dates
+                             (exit 1 when one is retired)
 """
 import re
 import sys
@@ -73,6 +75,16 @@ def main(argv=None) -> int:
         print(_matrix())
     elif cmd == "reference":
         print(_reference())
+    elif cmd == "lifecycle":
+        from .lifecycle import check_profile
+        findings = check_profile(args[1])
+        for f in findings:
+            print(f"{f['status']:8} {f['key']:22} {f['model']:42} {f['platform']:15} retires {f['retires']}"
+                  f" ({f['days_left']} days)" + (f" -> {f['replacement']}" if f.get("replacement") else ""))
+        print(f"{args[1]}: " + ("no listed model id configured" if not findings else
+                                f"{sum(f['status'] == 'RETIRED' for f in findings)} retired, "
+                                f"{sum(f['status'] == 'WARNING' for f in findings)} retiring soon"))
+        return 1 if any(f["status"] == "RETIRED" for f in findings) else 0
     else:
         print(__doc__)
         return 2

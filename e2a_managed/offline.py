@@ -147,12 +147,15 @@ def decode_gemini(body: Dict[str, Any]) -> List[Dict[str, Any]]:
 def _answer(responder: Responder, messages) -> Dict[str, Any]:
     """The responder's answer: text, or a dict with text / tool_calls / stop_reason, or
     {"error_status": 429, "retry_after": 1} to answer the HTTP request with that status (the
-    shape E2A's port contract kit, check_llm_service, uses)."""
+    shape E2A's port contract kit, check_llm_service, uses). "error_code" / "error_type" set
+    the provider's error code and type (for example an OpenAI spend limit, or Foundry's
+    content_filter)."""
     out = responder(messages)
     if isinstance(out, str):
         return {"text": out, "tool_calls": []}
     if out.get("error_status"):
-        return {"error_status": int(out["error_status"]), "retry_after": out.get("retry_after")}
+        return {"error_status": int(out["error_status"]), "retry_after": out.get("retry_after"),
+                "error_code": out.get("error_code"), "error_type": out.get("error_type")}
     return {"text": out.get("text", ""), "tool_calls": out.get("tool_calls") or [], "stop_reason": out.get("stop_reason")}
 
 
@@ -170,7 +173,8 @@ def error_response(answer: Dict[str, Any]) -> tuple:
     headers = {"content-type": "application/json", "x-should-retry": "true"}
     if answer.get("retry_after") is not None:
         headers["retry-after"] = str(answer["retry_after"])
-    body = {"type": "error", "error": {"type": _ERROR_TYPE.get(status, "api_error"), "code": status,
+    body = {"type": "error", "error": {"type": answer.get("error_type") or _ERROR_TYPE.get(status, "api_error"),
+                                       "code": answer.get("error_code") or status,
                                        "status": _ERROR_STATUS.get(status, "UNKNOWN"),
                                        "message": f"replayed HTTP {status}"}}
     return status, headers, json.dumps(body).encode()

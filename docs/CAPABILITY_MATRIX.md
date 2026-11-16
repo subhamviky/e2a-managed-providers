@@ -40,6 +40,7 @@ The cloud infrastructure keys (regions, projects, tables, databases, brokers, se
 | Key | Environment variable | Default | Used by |
 |---|---|---|---|
 | llm_sdk_max_retries | LLM_SDK_MAX_RETRIES | 0 | Provider SDK retries. 0: E2A (v1.5.1+) retries model calls by error class, honouring Retry-After within the deadline, so it is the only retry authority (no double retry) |
+| model_retirement_warn_days | MODEL_RETIREMENT_WARN_DAYS | 90 | lifecycle check — warn when a configured model retires within this many days (a retired model fails the release) |
 | llm_sdk_timeout | LLM_SDK_TIMEOUT | 60.0 | ManagedLLMService — SDK HTTP timeout; the E2A deadline still bounds every call |
 | fallback_model_id | LLM_FALLBACK_MODEL_ID | None | ManagedLLMService — the model a refusal is routed to: becomes E2A's model_routes [{on: [refusal], to: <id>}] when model_routes is not set (E2A 1.6.1) |
 | mcp_servers | MCP_SERVERS | [] | provider MCP connector — [{name, url, token_env}] remote MCP servers the model may call |

@@ -6,6 +6,8 @@ deployment two checks matter that a simulated build never needed:
 
   * the profile's bindings can be built and provide every required feature
     (Bindings.verify), checked in the static stage, before anything is deployed;
+  * no configured model id is past its published retirement date (lifecycle.check_profile,
+    also in the static stage); ids retiring soon are reported in `lifecycle_findings`;
   * the RAG/answer evaluation runs against the bound provider when credentials exist
     (live), and against the offline wire replay otherwise; CI marks which one ran.
 
@@ -22,6 +24,7 @@ from e2a import BasePipeline
 
 from .bindings import bindings_from_profile
 from .capabilities import Capability
+from .lifecycle import ModelRetired, check_profile
 
 
 class ManagedReleasePipeline(BasePipeline):
@@ -37,6 +40,7 @@ class ManagedReleasePipeline(BasePipeline):
         self.profile = profile
         self.test_command = test_command or [sys.executable, "-m", "pytest", "-q"]
         self.rag_eval = rag_eval
+        self.lifecycle_findings: List[Dict[str, Any]] = []
 
     def _run_static_security_scans(self, config, **kwargs) -> bool:
         cfg = {**self.config, **config}
@@ -46,6 +50,13 @@ class ManagedReleasePipeline(BasePipeline):
             raise ValueError(f"literal secrets in the release config: {sorted(secrets)}")
         if self.profile:                     # every seam builds and every required feature is provided
             bindings_from_profile(self.profile, overrides=kwargs.get("binding_overrides"), verify=True)
+            self.lifecycle_findings = check_profile(self.profile, kwargs.get("binding_overrides"),
+                                                    today=kwargs.get("today"))
+            retired = [f for f in self.lifecycle_findings if f["status"] == "RETIRED"]
+            if retired:
+                raise ModelRetired("; ".join(f"{f['key']}={f['model']} retired on {f['platform']} on {f['retires']}"
+                                             + (f" (replacement: {f['replacement']})" if f.get("replacement") else "")
+                                             for f in retired))
         return True
 
     def _execute_test_suite(self, config, **kwargs) -> bool:

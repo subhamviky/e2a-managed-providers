@@ -55,6 +55,9 @@ MANAGED_KEYS = [
     ConfigKey("llm_sdk_max_retries", "LLM_SDK_MAX_RETRIES", 0, int, _COMMON,
               "Provider SDK retries. 0: E2A (v1.5.1+) retries model calls by error class, honouring "
               "Retry-After within the deadline, so it is the only retry authority (no double retry)"),
+    ConfigKey("model_retirement_warn_days", "MODEL_RETIREMENT_WARN_DAYS", 90, int, _COMMON,
+              "lifecycle check — warn when a configured model retires within this many days "
+              "(a retired model fails the release)"),
     ConfigKey("llm_sdk_timeout", "LLM_SDK_TIMEOUT", 60.0, float, _COMMON,
               "ManagedLLMService — SDK HTTP timeout; the E2A deadline still bounds every call"),
     ConfigKey("fallback_model_id", "LLM_FALLBACK_MODEL_ID", None, str, _COMMON,
