@@ -1,0 +1,32 @@
+@startuml
+!include ../../common/style.puml
+title A read-only delegated step on OGX: server-side loop, moderation, tenant partition
+autonumber "<b>0."
+participant "E2A agent" as A
+participant "Responses runtime\n(DelegatedRuntime)" as R
+participant "OGX /v1/responses" as O
+participant "Moderation\n(server-side)" as M
+participant "Inference provider\n(Bedrock or self-hosted)" as P
+participant "MCP server / file_search\n(read only)" as T
+participant "io_modify (E2A)" as X
+A -> R : process_inference(read tools only, deadline)
+R -> O : create response (tenant identity, guardrails=true)
+O -> M : screen input
+alt flagged
+  M --> O : flagged
+  O --> R : refusal
+  R --> A : REFUSED (governance)
+else clean
+  loop server-side turns (bounded by E2A's deadline)
+    O -> P : inference
+    P --> O : tool call or answer
+    O -> T : read tool (scoped by OGX's tenant partition)
+    T --> O : facts
+  end
+  O -> M : screen generated text
+  O --> R : output
+  R --> A : canonical result
+  A -> A : evaluate; approval; _apply_policy
+  A -> X : _act (material effect stays in E2A)
+end
+@enduml
