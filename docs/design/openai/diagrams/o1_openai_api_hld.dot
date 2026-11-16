@@ -1,0 +1,25 @@
+digraph G {
+  graph [rankdir=LR, compound=true, fontname="DejaVu Sans", fontsize=13, labelloc=t, label=<<b>OpenAI operated by OpenAI: one API, three ways to run an agent</b>>, fontcolor="#1F3864", nodesep=0.3, ranksep=0.55, pad=0.25];
+  node [shape=box, style="rounded,filled", fillcolor="#F4F8FC", color="#1F3864", fontname="DejaVu Sans", fontsize=10, fontcolor="#1F3864", margin="0.12,0.05"];
+  edge [color="#2E4A6B", fontname="DejaVu Sans", fontsize=9];
+  subgraph cluster_e2a { label=<<b>E2A service (customer cloud)</b>>; style="rounded,filled"; fillcolor="#EAF2FA"; color="#2E75B6";
+    llm [label="llm_service\nOpenAIResponsesLLMService"];
+    rt [label="delegated_runtime\nResponsesAgentRuntime\n(read tools answered host-side)"];
+    act [label="_act through io_modify\n(material effects stay here)"];
+    st [label="cloud profile ports:\nclaims, outbox, broker, secrets"];
+  }
+  subgraph cluster_id { label=<<b>Identity</b>>; style="rounded,filled"; fillcolor="#FBF3E6"; color="#D4A017"; fontcolor="#7A5A00";
+    key [label="project API key (secret store)\nor workload identity federation"];
+  }
+  subgraph cluster_oai { label=<<b>OpenAI platform (OpenAI operates; OpenAI is the data processor)</b>>; style="rounded,filled"; fillcolor="#E6F4F5"; color="#0F7C8C"; fontcolor="#0F5C66";
+    resp [label="Responses API: structured outputs, effort,\nprompt caching, refusal part, store=false"];
+    agents [label="Agents API (option)\nmanaged Codex harness, sessions, sandbox"];
+    mcp [label="remote MCP tool\n(approval by default; allowed_tools)"];
+    fs [label="file search / vector stores\n(gate: one store per tenant)"];
+    mod [label="moderation endpoint\n(optional E2A stage)"];
+  }
+  ext [label="MCP server\n(scopes the tenant itself)", fillcolor="#FFFFFF"];
+  llm -> key; rt -> key; key -> resp [lhead=cluster_oai];
+  rt -> agents [style=dashed, xlabel="option"];
+  mcp -> ext; agents -> ext [style=dashed];
+}

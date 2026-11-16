@@ -1,0 +1,31 @@
+@startuml
+!include ../../common/style.puml
+title Agents API as a delegated runtime: read tools only, E2A keeps the effect
+autonumber "<b>0."
+actor Caller as U
+participant "E2A agent" as A
+participant "Agents API runtime\n(DelegatedRuntime, option)" as R
+participant "Agents API\n(managed Codex harness)" as M
+participant "Function-tool handler\n(E2A, tenant-scoped)" as H
+participant "Remote MCP server\n(read tools)" as S
+participant "io_modify\n(E2A)" as T
+U -> A : request (tenant, deadline)
+A -> R : process_inference(messages, read tools only)
+R -> M : create session; send task
+loop agent turns (bounded by E2A's deadline and turn limit)
+  alt function tool
+    M -> H : tool call event
+    H --> M : result (execute() under the tenant)
+  else remote MCP tool
+    M -> S : call (server scopes the tenant itself)
+    S --> M : facts
+  end
+end
+M --> R : outcome and items
+R --> A : canonical result
+A -> A : _evaluate_output; approval; _apply_policy
+A -> T : _act (material effect stays in E2A)
+T --> A : PhysicalOutcome
+A -> A : _confirm
+A --> U : typed result
+@enduml

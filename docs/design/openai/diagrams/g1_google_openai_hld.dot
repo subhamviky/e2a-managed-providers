@@ -1,0 +1,22 @@
+digraph G {
+  graph [rankdir=LR, compound=true, fontname="DejaVu Sans", fontsize=13, labelloc=t, label=<<b>OpenAI on Google Cloud: Google's services fill what the preview does not offer</b>>, fontcolor="#1F3864", nodesep=0.3, ranksep=0.55, pad=0.25];
+  node [shape=box, style="rounded,filled", fillcolor="#F4F8FC", color="#1F3864", fontname="DejaVu Sans", fontsize=10, fontcolor="#1F3864", margin="0.12,0.05"];
+  edge [color="#2E4A6B", fontname="DejaVu Sans", fontsize=9];
+  subgraph cluster_e2a { label=<<b>E2A service (customer cloud)</b>>; style="rounded,filled"; fillcolor="#EAF2FA"; color="#2E75B6";
+    llm [label="OpenAIResponsesLLMService\n(publishers/openai/v1, ADC token)"];
+    oss [label="Chat Completions service\n(Google client; gpt-oss)"];
+    gov [label="governance stage\n(fail closed)"];
+    tools [label="tools run host-side\n(client-run MCP)"];
+  }
+  subgraph cluster_g { label=<<b>Gemini Enterprise Agent Platform (Google Cloud perimeter, Google billing)</b>>; style="rounded,filled"; fillcolor="#E6F4F5"; color="#0F7C8C"; fontcolor="#0F5C66";
+    fr [label="OpenAI frontier models\nPRIVATE PREVIEW"];
+    go [label="gpt-oss-120b-maas\nGA"];
+  }
+  subgraph cluster_gs { label=<<b>Google services bound in their place</b>>; style="rounded,filled"; fillcolor="#F2F2F2"; color="#7F7F7F";
+    vs [label="Vector Search + ranking API"];
+    ma [label="Model Armor stage"];
+    iap [label="MCP servers behind IAP"];
+  }
+  llm -> fr; oss -> go; llm -> go [style=dashed, xlabel="model_routes"];
+  tools -> iap; tools -> vs; gov -> ma;
+}
