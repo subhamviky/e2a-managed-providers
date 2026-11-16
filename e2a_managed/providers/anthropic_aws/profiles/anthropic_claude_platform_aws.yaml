@@ -6,8 +6,9 @@ cloud: aws
 extends: aws
 description: >
   Claude Platform on AWS (Anthropic-operated, AWS IAM/SigV4 and AWS billing, same-day API
-  parity): adds the Anthropic MCP connector, server-side refusal fallbacks and Claude
-  Managed Agents as the delegated runtime. Retrieval, guardrails and state still use the
+  parity): adds the Anthropic MCP connector and Claude Managed Agents as the delegated
+  runtime. Refusals are answered by E2A's model routes (server-side fallback is not offered
+  on this platform). Retrieval, guardrails and state still use the
   AWS platform services, exactly as in anthropic_bedrock.
 features: [tool_use, structured_output, streaming, prompt_caching, reasoning_effort, refusal_fallback,
            mcp_connector, embeddings, vector_search, rerank, guardrails, prompt_registry,

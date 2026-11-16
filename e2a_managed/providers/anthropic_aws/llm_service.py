@@ -5,8 +5,11 @@
                                    Model ids carry the `anthropic.` prefix.
     ClaudePlatformAWSLLMService    Claude Platform on AWS (Anthropic-operated, AWS IAM and
                                    billing, same-day parity with Anthropic's own API): adds
-                                   the MCP connector, server-side refusal fallbacks,
-                                   web search, batches and Managed Agents.
+                                   the MCP connector, web search, batches and Managed
+                                   Agents. Server-side refusal fallback is not offered on
+                                   this platform (Anthropic documents it for the Claude API
+                                   and Claude Models on Google Cloud, Anthropic managed):
+                                   E2A's model_routes answer refusals, as on Bedrock.
 
 Both send the Messages API through the official `anthropic` SDK. What E2A's base class
 already does is not repeated here (quota, deadline, circuit breaker, DLP, permits).
@@ -20,7 +23,8 @@ Claude-specific mapping decisions
     breakpoint on the system prompt: E2A decides *what* is cacheable, Claude caches it.
   * response_schema -> output_config.format json_schema (structured outputs).
   * refusals: stop_reason "refusal" -> ModelRefusal; E2A routes it (fallback_model_id -> model_routes)
-    (Bedrock); Claude Platform on AWS uses the server-side `fallbacks` parameter instead.
+    on both platforms here. `server_side_fallbacks` (the `fallbacks` parameter, beta) is for a
+    platform that offers it; a class that sets it declares refusal_fallback_server.
 """
 from typing import Any, AsyncIterator, Dict, FrozenSet, List, Optional
 
@@ -117,10 +121,8 @@ class BedrockClaudeLLMService(ClaudeMessagesLLMService):
 class ClaudePlatformAWSLLMService(ClaudeMessagesLLMService):
     """Claude Platform on AWS: SigV4 / IAM auth, AWS billing, Anthropic-operated API."""
     platform = "claude_platform_aws"
-    server_side_fallbacks = True
     mcp_connector = True
-    capabilities = ClaudeMessagesLLMService.capabilities | {C.MCP_CONNECTOR, C.SERVER_WEB_SEARCH, C.BATCH,
-                                                            C.REFUSAL_FALLBACK_SERVER}
+    capabilities = ClaudeMessagesLLMService.capabilities | {C.MCP_CONNECTOR, C.SERVER_WEB_SEARCH, C.BATCH}
 
     def _build_client(self, config, kwargs):
         from anthropic import AsyncAnthropicAWS

@@ -1,0 +1,23 @@
+digraph G {
+  graph [rankdir=LR, compound=true, fontname="DejaVu Sans", fontsize=13, labelloc=t, label=<<b>Claude operated by Anthropic: three ways in, one platform</b>>, fontcolor="#1F3864", nodesep=0.3, ranksep=0.55, pad=0.25];
+  node [shape=box, style="rounded,filled", fillcolor="#F4F8FC", color="#1F3864", fontname="DejaVu Sans", fontsize=10, fontcolor="#1F3864", margin="0.12,0.05"];
+  edge [color="#2E4A6B", fontname="DejaVu Sans", fontsize=9];
+  subgraph cluster_e2a { label=<<b>E2A service (customer cloud)</b>>; style="rounded,filled"; fillcolor="#EAF2FA"; color="#2E75B6";
+    llm [label="llm_service\nClaudeMessagesLLMService family"];
+    rt [label="delegated_runtime\nClaudeManagedAgentsRuntime"];
+    st [label="cloud profile ports:\nclaims, outbox, broker, secrets"];
+  }
+  subgraph cluster_in { label=<<b>Identity and billing</b>>; style="rounded,filled"; fillcolor="#FBF3E6"; color="#D4A017"; fontcolor="#7A5A00";
+    d [label="Claude API\nAnthropic API key (secret store)\nAnthropic billing"];
+    a [label="Claude Platform on AWS\nSigV4 / IAM, workspace id\nAWS Marketplace billing"];
+    g [label="Google Cloud (Anthropic managed)\nGoogle credentials (ADC), IAM roles\nGoogle Cloud Marketplace billing"];
+  }
+  subgraph cluster_ant { label=<<b>Anthropic platform (Anthropic operates; Anthropic is the data processor)</b>>; style="rounded,filled"; fillcolor="#E6F4F5"; color="#0F7C8C"; fontcolor="#0F5C66";
+    m [label="Messages API: structured outputs, effort,\nprompt caching, citations, refusal signal"];
+    ma [label="Claude Managed Agents (beta)\nsessions, sandboxes, built-in tools"];
+    mcp [label="MCP connector (beta)"];
+    fb [label="server-side fallback (beta):\nClaude API and Google Cloud\n(Anthropic managed) only"];
+  }
+  llm -> d; llm -> a; llm -> g; rt -> a [style=dashed];
+  d -> m [lhead=cluster_ant]; a -> m [lhead=cluster_ant]; g -> m [lhead=cluster_ant];
+}

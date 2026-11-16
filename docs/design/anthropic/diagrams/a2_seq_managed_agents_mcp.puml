@@ -1,0 +1,25 @@
+@startuml
+!include ../../common/style.puml
+title Claude Managed Agents with the MCP connector: reads only, E2A keeps the effect
+autonumber "<b>0."
+actor Caller as U
+participant "E2A agent" as A
+participant "ClaudeManagedAgentsRuntime\n(DelegatedRuntime)" as R
+participant "Claude Managed Agents\n(session, sandbox; beta)" as M
+participant "MCP server\n(read tools, tenant-scoped)" as S
+participant "io_modify\n(E2A)" as T
+U -> A : request (tenant, deadline)
+A -> R : process_inference(messages, read tools only)
+R -> M : create / continue session\n(managed-agents-2026-04-01)
+loop agent turns (bounded by E2A's deadline)
+  M -> S : tool call through the MCP connector
+  S --> M : facts (read only)
+end
+M --> R : outcome / transcript
+R --> A : canonical result
+A -> A : _evaluate_output; approval; _apply_policy
+A -> T : _act (material effect stays in E2A)
+T --> A : PhysicalOutcome
+A -> A : _confirm
+A --> U : typed result
+@enduml
