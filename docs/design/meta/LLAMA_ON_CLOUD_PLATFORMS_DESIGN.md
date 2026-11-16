@@ -85,7 +85,7 @@ None beyond the core's Section 5. The lifecycle check runs in the release pipeli
 |---|---|
 | Llama on Bedrock through OGX | Implemented (`ogx_aws`, offline replay) |
 | Direct Llama bindings on Google Cloud and Azure | Documented |
-| Release-pipeline lifecycle check | Documented: follow-up (shared with the Gemini series) |
+| Release-pipeline lifecycle check | Implemented (P-2): Bedrock and Foundry Llama dates in `model_lifecycle.yaml` |
 | Meta's own APIs | Not covered (official pages not readable here) |
 | Live behaviour | Not covered: needs live tests |
 

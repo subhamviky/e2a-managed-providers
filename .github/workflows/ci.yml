@@ -38,6 +38,8 @@ jobs:
         run: pytest -q -rs
       - name: Every profile binds and provides its features
         run: for p in $(python -m e2a_managed profiles | awk '{print $1}'); do python -m e2a_managed verify "$p"; done
+      - name: Model lifecycle (a configured model past its retirement date fails)
+        run: for p in $(python -m e2a_managed profiles | awk '{print $1}'); do python -m e2a_managed lifecycle "$p"; done
 
   project-suites:
     # The three projects' OWN test suites, with their model binding swapped to each profile.

@@ -15,7 +15,7 @@ OpenAI models reach an E2A service by four routes. They split by **who operates 
 - **One wire everywhere.** All four offer OpenAI's Responses API, so `OpenAIResponsesLLMService` is written once and only the client (base URL, credential) changes. gpt-oss on Google uses Chat Completions.
 - **No server-side refusal fallback** on any route: E2A's `model_routes` answer refusals.
 - **Where the service cannot call MCP servers or search files** (Bedrock, Google), tools and retrieval run host-side through E2A and the cloud's services. E2A stays in every tool call path, which is the stricter shape.
-- **Where the platform filters content itself** (Foundry's DefaultV2), E2A keeps its own stage for retrieved text and tool output. A platform block should be reported as `REFUSED`, not `FAILED` (follow-up).
+- **Where the platform filters content itself** (Foundry's DefaultV2), E2A keeps its own stage for retrieved text and tool output. A platform block is reported as `REFUSED`, not `FAILED` (since P-2).
 - **Preview offerings** (Bedrock Managed Agents; OpenAI frontier models on Google Cloud) fail the replacement gate's "generally available" item: evaluation only, with a GA route configured.
 - **In every variant, E2A keeps:**
   - the business idempotency key;
@@ -24,8 +24,8 @@ OpenAI models reach an E2A service by four routes. They split by **who operates 
   - `_confirm`;
   - tenant resolution at ingress.
 
-**Follow-ups found by this review** (provider layer):
-1. Classify OpenAI 429s for spend, credit or usage limits as non-retryable.
-2. Map Foundry's `content_filter` (400, and `content_filters[].blocked` on output) to `REFUSED`.
+**Follow-ups found by this review**, both done in the provider layer (P-2):
+1. OpenAI 429s for spend, credit or usage limits fail at once instead of being retried.
+2. Foundry's `content_filter` (400, and `content_filters[].blocked` on output) is reported as `REFUSED`.
 
 All product facts were checked on 16 November 2026 against OpenAI's, Microsoft's, AWS's and Google's documentation; each document lists its sources.

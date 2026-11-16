@@ -57,7 +57,7 @@ From AWS or Azure, the same `llm_service` and `embedding_model` bind inside the 
 | `DelegatedRuntime` | EXTEND | an ADK agent on Agent Runtime: read tools only, bounded by E2A's deadline; `_act` stays in E2A |
 | `MCPToolService` | REPLACE transport, EXTEND policy | MCP servers on Cloud Run behind IAP (`IAPGatewayTool`), called host-side. **Agent Gateway** is the managed alternative for egress policy, but for Cloud Run agents it is in Limited Preview, so it is not bound. |
 | Retrieval | REPLACE | Vector Search and Ranking, tenant-filtered; E2A keeps `evaluate_answer` |
-| Model lifecycle | ADAPT (new) | model ids are configuration (`LLM_MODEL_ID`), and the release pipeline should check them against the lifecycle table. A retired id surfaces only as a 404 at run time. |
+| Model lifecycle | ADAPT (new) | model ids are configuration (`LLM_MODEL_ID`), and since P-2 the release pipeline checks them against the published retirement dates (`model_lifecycle.yaml`; `python -m e2a_managed lifecycle <profile>`): retired fails the release, retiring within 90 days is reported. A retired id surfaces only as a 404 at run time. |
 
 Everything else keeps the core default, including tenant resolution at ingress (`gcp_api_gateway` on Google Cloud; the other cloud's source when called from AWS or Azure).
 
@@ -102,6 +102,7 @@ Everything else keeps the core default, including tenant resolution at ingress (
 | Default model `gemini-3.8-flash`; thinking levels lowered per model | Implemented in this step, with tests (provider suite 108 passed) |
 | Vector Search, Ranking, Model Armor, Agent Runtime, IAP gateway | Implemented: Google service classes, offline |
 | Use from AWS or Azure (federation) | Documented |
+| Release-pipeline lifecycle check | Implemented (P-2); it would have failed the old `gemini-2.5-pro` default |
 | Interactions API transport | Documented: follow-up |
 | Live behaviour, quotas, latency | Not covered: needs live tests |
 

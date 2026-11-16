@@ -110,7 +110,8 @@ class ManagedLLMService(BaseLLMAgentService):
                                       list(stop_sequences or []), cache_handle, config, kwargs)
         out = self._parse(await self._send(client, request))
         if (out.get("metadata") or {}).get("stop_reason") == "refusal":
-            raise ModelRefusal(self.provider, model_id, out.get("text", ""))
+            raise ModelRefusal(self.provider, model_id, out.get("text", ""),
+                               str((out.get("metadata") or {}).get("refusal_category") or ""))
         return out
 
     async def _dispatch_upstream_stream(self, messages, model_id, temperature, max_tokens, config, **kwargs):

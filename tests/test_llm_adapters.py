@@ -167,3 +167,62 @@ async def test_gemini_2_5_still_gets_a_thinking_budget():
     await svc.process_inference([SYSTEM, USER], tenant_id="acme", reasoning_effort="high")
     cfg = rt.requests[-1]["body"]["generationConfig"]["thinkingConfig"]
     assert cfg.get("thinkingBudget", cfg.get("thinking_budget")) == 24576
+
+
+# ------------------------------------------------------------------ provider error classes (P-2)
+@pytest.mark.parametrize("code", ["credit_balance_exhausted", "organization_spend_limit_exceeded",
+                                  "project_spend_limit_exceeded", "organization_usage_limit_exceeded"])
+async def test_an_openai_account_limit_fails_at_once_and_is_not_retried(code):
+    svc, rt = offline_llm_service("openai_azure", lambda m: {"error_status": 429, "error_code": code})
+    out = await svc.process_inference([SYSTEM, USER], tenant_id="acme")
+    assert out["status"] == "FAILED" and out["error_kind"] == "deterministic"
+    assert len(rt.requests) == 1                     # waiting would not clear it: no retry
+
+
+async def test_an_openai_insufficient_quota_type_is_an_account_limit_too():
+    svc, rt = offline_llm_service("openai_azure", lambda m: {"error_status": 429, "error_code": "billing_hard_limit",
+                                                            "error_type": "insufficient_quota"})
+    out = await svc.process_inference([SYSTEM, USER], tenant_id="acme")
+    assert out["error_kind"] == "deterministic" and len(rt.requests) == 1
+
+
+async def test_an_ordinary_openai_rate_limit_is_still_retried():
+    calls = []
+
+    def responder(messages):
+        calls.append(1)
+        return {"error_status": 429, "error_code": "rate_limit_exceeded"} if len(calls) == 1 else "ok"
+    svc, rt = offline_llm_service("openai_azure", responder)
+    out = await svc.process_inference([SYSTEM, USER], tenant_id="acme")
+    assert out["text"] == "ok" and len(rt.requests) == 2
+
+
+async def test_a_foundry_content_filter_block_is_refused_not_failed():
+    svc, rt = offline_llm_service("openai_azure", lambda m: {"error_status": 400, "error_code": "content_filter"})
+    out = await svc.process_inference([SYSTEM, USER], tenant_id="acme")
+    assert out["status"] == "REFUSED" and out["refusal"]["category"] == "content_filter"
+    assert len(rt.requests) == 1
+
+
+async def test_a_foundry_content_filter_block_routes_to_the_fallback_deployment():
+    calls = []
+
+    def responder(messages):
+        calls.append(1)
+        return {"error_status": 400, "error_code": "content_filter"} if len(calls) == 1 else "answered by fallback"
+    svc, rt = offline_llm_service("openai_azure", responder, fallback_model_id="gpt-fallback")
+    out = await svc.process_inference([SYSTEM, USER], tenant_id="acme")
+    assert out["text"] == "answered by fallback" and out["fallback_from"]["reason"] == "refusal"
+
+
+def test_a_foundry_output_block_in_content_filters_is_a_refusal():
+    from e2a_managed.providers.openai_azure.llm_service import AzureOpenAIResponsesLLMService
+    svc = AzureOpenAIResponsesLLMService({}, client=object())
+    response = {"id": "r1", "model": "gpt", "status": "completed", "output": [
+        {"type": "message", "role": "assistant", "content": [{"type": "output_text", "text": ""}]}],
+        "usage": {"input_tokens": 1, "output_tokens": 0},
+        "content_filters": [{"blocked": True, "source_type": "completion", "content_filter_results": {}}]}
+    out = svc._parse(response)
+    assert out["metadata"]["stop_reason"] == "refusal" and out["metadata"]["refusal_category"] == "content_filter"
+    clean = dict(response, content_filters=[{"blocked": False}])
+    assert svc._parse(clean)["metadata"]["stop_reason"] != "refusal"

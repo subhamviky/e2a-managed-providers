@@ -67,10 +67,10 @@ The model call, failure handling, unknown effects, outbox and identity follow th
 
 ## 5. Error mapping
 
-| Signal (OpenAI "Error codes") | E2A result today (`classify_error`) | Design intent |
+| Signal (OpenAI "Error codes") | E2A result | Design intent |
 |---|---|---|
 | 429 rate limit / `slow_down` (`Retry-After`) | throttled: retried within the deadline | same |
-| 429 `credit_balance_exhausted`, `organization_spend_limit_exceeded`, `project_spend_limit_exceeded`, usage limit | throttled: **retried**, although waiting will not clear it | no retry, `FAILED`, alert (follow-up: an OpenAI error classifier in the provider layer) |
+| 429 `credit_balance_exhausted`, `organization_spend_limit_exceeded`, `project_spend_limit_exceeded`, `organization_usage_limit_exceeded`, or error type `insufficient_quota` | deterministic: no retry, `FAILED` (`classify_openai_error`, since P-2; before, it was retried as throttling) | same |
 | 500 / 503 | transient or overloaded: retried within the deadline | same |
 | 400 invalid request | deterministic: no retry, `FAILED` | same |
 | 401 (key, organisation, IP allowlist), 403 (unsupported country or region) | auth: no retry, `FAILED`, alert | same |
@@ -95,7 +95,7 @@ The provider request id (`x-request-id`) is recorded in E2A telemetry with the t
 | Responses tool loop as delegated runtime | Implemented: `ResponsesAgentRuntime`, offline |
 | A direct OpenAI API profile | Documented (proposed bindings in Section 2) |
 | Agents API runtime, file search binding, moderation stage | Documented |
-| Spend-limit 429 classified as non-retryable | To validate: follow-up in the provider layer |
+| Spend-limit 429 classified as non-retryable | Implemented (P-2): `classify_openai_error`, offline tests per code |
 | Live behaviour, quotas, latency | Not covered: needs live tests |
 
 ## 8. Sources (checked 16 November 2026)

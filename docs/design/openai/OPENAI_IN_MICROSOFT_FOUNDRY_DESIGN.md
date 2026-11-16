@@ -53,7 +53,7 @@
 | `_format_and_validate_output`, reasoning, caching, refusal part | as the OpenAI API document | the same Responses wire (`text.format`, `reasoning.effort`, `prompt_cache_key`, `refusal` part) |
 | Refusal outcome | COMPOSE | no server-side fallback; E2A's `model_routes` (`fallback_model_id` names a second deployment) |
 | Content safety | COMPOSE | **Platform:** DefaultV2 filters on every call, outside E2A's control. **E2A:** `AzureContentSafetyStage` stays, because it screens what the platform does not by default: retrieved documents and tool outputs (document attacks), before they enter the prompt. |
-| Platform filter outcome | ADAPT (gap) | A blocked prompt returns **400 with code `content_filter`**; Responses output carries a top-level `content_filters` array (a Foundry extension the SDK does not type). E2A should report a block as `REFUSED` (governance), not a failure. Today `classify_error` makes the 400 `deterministic` → `FAILED`; a provider-layer classifier is the follow-up (Section 5). |
+| Platform filter outcome | ADAPT | A blocked prompt returns **400 with code `content_filter`**; Responses output carries a top-level `content_filters` array (a Foundry extension the SDK does not type). Since P-2, `AzureOpenAIResponsesLLMService` raises `ModelRefusal` (category `content_filter`) for both, so E2A reports `REFUSED` and `model_routes` may answer from another deployment; before, the 400 was `FAILED`. |
 | `DelegatedRuntime` | EXTEND | **Today:** `ResponsesAgentRuntime`. **Option:** a Foundry **prompt agent** or **hosted agent** called through the Agent Service. E2A binds read tools only and keeps `_act`; a toolbox's MCP endpoint replaces the per-server list when the toolbox holds read tools only. |
 | `MCPToolService` | REPLACE transport, EXTEND policy | `mcp` tools called by the service (`require_approval: "never"` only for read tools), or API Management as a governed MCP gateway (`APIMGatewayTool`), which is where per-tenant policy can be enforced |
 | `BaseVectorIndex`, `BaseReranker` | REPLACE | Azure AI Search hybrid retrieval and semantic ranker, with one index filter per tenant; E2A keeps `evaluate_answer` |
@@ -71,8 +71,8 @@ Everything else keeps the core default: the business idempotency key, approval, 
 |---|---|---|
 | 429 | throttled: retried within the deadline (SDK retries 0) | same |
 | 5xx | transient or overloaded: retried within the deadline | same |
-| 400 `content_filter` (prompt blocked by the platform) | deterministic → `FAILED` | `REFUSED` with a governance reason; no retry (follow-up) |
-| 200 with `content_filters[].blocked` on output | not inspected | `REFUSED` (follow-up) |
+| 400 `content_filter` (prompt blocked by the platform) | `REFUSED` (category `content_filter`), then `model_routes`; no retry | same |
+| 200 with `content_filters[].blocked` on output | `REFUSED` (category `content_filter`) | same |
 | 400 other (unknown deployment name, invalid request) | deterministic: no retry, `FAILED` | same |
 | 401 / 403 (Entra token, missing role) | auth: no retry, alert | same |
 | 200 with a `refusal` content part | `ModelRefusal`, then `model_routes`, else `REFUSED` | same |
@@ -93,7 +93,7 @@ Everything else keeps the core default: the business idempotency key, approval, 
 | `openai_azure` model calls, structured output, effort, caching, refusal route, MCP tool shape, embeddings | Implemented: offline replay of the real SDK; `check_llm_service`; the three projects' suites run on this profile |
 | Responses tool loop as delegated runtime | Implemented: `ResponsesAgentRuntime`, offline |
 | AI Search, semantic ranker, Content Safety, APIM gateway | Implemented: Azure service classes, offline |
-| Platform `content_filter` → `REFUSED` | To validate: follow-up in the provider layer |
+| Platform `content_filter` → `REFUSED` | Implemented (P-2): offline tests for the 400, the output flag and the fallback route |
 | Foundry Agent Service runtime | Documented |
 | Live behaviour, quotas, latency | Not covered: needs live tests |
 
