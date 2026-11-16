@@ -19,7 +19,7 @@
 | Item | Why | Where |
 |---|---|---|
 | `aws_s3vectors_*`, `aws_bedrockagentcore_*`, `google_model_armor_template` | recent Terraform resource types; attribute names written from provider docs, not validated here | `*/terraform/extensions/` (CI validates them non-blocking) |
-| Llama Stack `run.yaml` schema | the project changes fast (partly renamed OGX in 2026) | `providers/meta_llama/distribution/run.yaml` |
+| OGX `config.yaml` schema | renamed from Llama Stack in April 2026; 1.x APIs are stable, the distribution format still moves | `providers/ogx/distribution/config.yaml` |
 | Vertex Vector Search delete | `removeDatapoints` takes ids only; ids are remembered per process, else `<doc>#0..N` | `clouds/gcp/services.py` |
 | Agent Engine `:query` and AgentCore payload contracts | defined by the agent code you deploy; this repo states the contract it expects | `clouds/*/…Runtime` docstrings |
 | Model ids (`claude-opus-5-5`, `gpt-5`, `gemini-3.8-flash`, `meta.llama4-maverick…`) | availability differs per region and account | profiles (all overridable by env) |
@@ -31,8 +31,8 @@
   web search or Batches API. Use Claude Platform on AWS when they are needed; the capability
   check refuses the combination at startup.
 * **Anthropic has no embedding model.** Embeddings come from the cloud (Titan on AWS).
-* **Llama Stack vector_io has no chunk delete**; documents are removed by re-indexing into a
-  fresh store (blue/green). `delete()` raises instead of silently keeping stale chunks.
+* **OGX embeds vector-store files itself** with the store's embedding model, so the vectors E2A
+  computes are not sent; each chunk is one file, which makes replace and delete exact.
 * **No managed prompt registry is bound for Azure or GCP** (none is stable enough to bind).
   Prompts stay in code or in E2A's `BasePromptRegistry` with your own store.
 * **S3 Vectors is vector-only, and so is `S3VectorsIndex`** (it declares `vector_search`, not

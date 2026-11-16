@@ -4,8 +4,8 @@ E2A splits retrieval into two shared ports (one embedding model, one index, so t
 write and read sides cannot drift) plus two read-side hooks (_rerank,
 _evaluate_answer). Managed services map onto them as:
 
-    BaseEmbeddingModel  <- Titan / text-embedding-3 / gemini-embedding / Llama Stack embeddings
-    BaseVectorIndex     <- S3 Vectors / Azure AI Search / Vertex Vector Search / Llama Stack vector_io
+    BaseEmbeddingModel  <- Titan / text-embedding-3 / gemini-embedding / OGX embeddings
+    BaseVectorIndex     <- S3 Vectors / Azure AI Search / Vertex Vector Search / OGX vector stores
     BaseReranker        <- ManagedReranker: Bedrock Rerank (Cohere / Amazon), Azure semantic
                            ranker, Vertex AI Ranking API (E2A's port since v1.6.1)
     _evaluate_answer    <- lexical groundedness by default; providers may plug a managed check

@@ -9,7 +9,7 @@
 | Framework | E2A, with `e2a-adapters` and `e2a-managed-providers` |
 | Document type | Provider design document (HLD + LLD), Meta series |
 | Author | Subham Gupta, Principal Platform Architect |
-| Source baseline | `e2a-framework` `v1.7.4`; `e2a-managed-providers` `main`: the cloud service classes; profile `meta_llama_aws` (Llama on Bedrock through OGX, see the OGX document) |
+| Source baseline | `e2a-framework` `v1.7.4`; `e2a-managed-providers` `main`: the cloud service classes; profile `ogx_aws` (Llama on Bedrock through OGX, see the OGX document; alias `meta_llama_aws`) |
 | Date | 16 November 2026 (product facts checked on this date) |
 | Status | Documented. Bedrock Llama is used today through the OGX profile. |
 
@@ -37,7 +37,7 @@ No separate profile is proposed per cloud. Llama is reached the way each cloud's
 
 | Cloud | Binding |
 |---|---|
-| AWS | today through `meta_llama_aws` (OGX in front of Bedrock). A direct option is a Converse-based service like the Bedrock classes already in the repository. |
+| AWS | today through `ogx_aws` (OGX in front of Bedrock). A direct option is a Converse-based service like the Bedrock classes already in the repository. |
 | Google Cloud | the Chat Completions transport with a Google client (the same gap as gpt-oss in the OpenAI series): `LlamaStackLLMService`'s wire with an ADC-token client |
 | Azure | the Foundry chat-completions endpoint with an Entra token |
 
@@ -83,7 +83,7 @@ None beyond the core's Section 5. The lifecycle check runs in the release pipeli
 
 | Item | Status |
 |---|---|
-| Llama on Bedrock through OGX | Implemented (`meta_llama_aws`, offline replay) |
+| Llama on Bedrock through OGX | Implemented (`ogx_aws`, offline replay) |
 | Direct Llama bindings on Google Cloud and Azure | Documented |
 | Release-pipeline lifecycle check | Documented: follow-up (shared with the Gemini series) |
 | Meta's own APIs | Not covered (official pages not readable here) |

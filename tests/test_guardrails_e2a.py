@@ -6,29 +6,32 @@ import pytest
 from e2a import FirewallRefusal, ManagedGuardrailEgressStage
 from e2a.context import MessageLog
 
-from e2a_managed.guardrails import ManagedGuardrailStage
-from e2a_managed.providers.meta_llama.llm_service import LlamaGuardStage
+from e2a_managed.guardrails import ManagedGuardrailStage, Verdict
 
 
-class Safety:
-    def __init__(self, fail=False):
+class Classifier(ManagedGuardrailStage):
+    """The smallest provider stage: only _screen and a client, as every provider stage."""
+    name = "test_classifier"
+
+    def __init__(self, config=None, fail=False):
+        super().__init__(config or {}, client=object())
         self.fail = fail
 
-    def run_shield(self, shield_id, messages):
+    def _build_client(self, config):
+        return object()
+
+    def _screen(self, text, ctx):
         if self.fail:
-            raise ConnectionError("shield down")
-        text = messages[0]["content"]
-        if "attack" in text:
-            return {"violation": {"violation_level": "error", "metadata": {"violation_type": "S14"}}}
-        return {"violation": None}
+            raise ConnectionError("classifier down")
+        return Verdict(False, ["S14"]) if "attack" in text else Verdict(True)
 
 
 def stage(config=None, fail=False):
-    return LlamaGuardStage(config or {}, client=SimpleNamespace(safety=Safety(fail)))
+    return Classifier(config, fail)
 
 
 def test_the_provider_stage_is_e2as_base_with_e2as_rules():
-    assert issubclass(LlamaGuardStage, ManagedGuardrailStage)
+    assert issubclass(Classifier, ManagedGuardrailStage)
     log = MessageLog([], "c1", "test")
     assert stage().check({"query": "where is my order"}, None, log) == {"query": "where is my order"}
     with pytest.raises(FirewallRefusal, match="S14"):

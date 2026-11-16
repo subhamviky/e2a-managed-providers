@@ -1,6 +1,7 @@
-# Llama Stack distribution on ECS Fargate (private), for the meta_llama_aws profile. It is
+# OGX (formerly Llama Stack) on ECS Fargate (private), for the ogx_aws profile. It is
 # applied together with clouds/aws/terraform (state tables, telemetry, ECR). The task role
-# may invoke the Llama models on Bedrock; pgvector credentials come from Secrets Manager.
+# may invoke the configured models on Bedrock and use its own S3 bucket for files; the
+# PostgreSQL (pgvector and OGX state) credentials come from Secrets Manager.
 terraform {
   required_version = ">= 1.7"
   required_providers {
@@ -16,7 +17,7 @@ provider "aws" {
 }
 
 locals {
-  name = "e2a-${var.tenant_id}-llama-stack"
+  name = "e2a-${var.tenant_id}-ogx"
 }
 
 resource "aws_ecs_cluster" "this" {
@@ -59,14 +60,54 @@ resource "aws_iam_role_policy_attachment" "execution" {
 
 data "aws_iam_policy_document" "task" {
   statement {
-    sid       = "LlamaOnBedrock"
+    sid       = "ModelsOnBedrock"
     actions   = ["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"]
     resources = [for m in var.bedrock_model_ids : "arn:aws:bedrock:*::foundation-model/${m}"]
   }
 }
 
+resource "aws_s3_bucket" "files" {
+  bucket_prefix = "${local.name}-files-"
+}
+
+resource "aws_s3_bucket_public_access_block" "files" {
+  bucket                  = aws_s3_bucket.files.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "files" {
+  bucket = aws_s3_bucket.files.id
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "aws:kms"
+    }
+  }
+}
+
+data "aws_iam_policy_document" "files" {
+  statement {
+    sid       = "OGXFiles"
+    actions   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
+    resources = ["${aws_s3_bucket.files.arn}/ogx/files/*"]
+  }
+  statement {
+    sid       = "OGXFilesList"
+    actions   = ["s3:ListBucket"]
+    resources = [aws_s3_bucket.files.arn]
+  }
+}
+
+resource "aws_iam_role_policy" "files" {
+  name   = "ogx-files"
+  role   = aws_iam_role.task.id
+  policy = data.aws_iam_policy_document.files.json
+}
+
 resource "aws_iam_role_policy" "task" {
-  name   = "llama-stack-inference"
+  name   = "ogx-inference"
   role   = aws_iam_role.task.id
   policy = data.aws_iam_policy_document.task.json
 }
@@ -80,23 +121,28 @@ resource "aws_ecs_task_definition" "this" {
   task_role_arn            = aws_iam_role.task.arn
   execution_role_arn       = aws_iam_role.execution.arn
   container_definitions = jsonencode([{
-    name         = "llama-stack"
+    name         = "ogx"
     image        = var.image
     essential    = true
-    command      = ["--config", "/config/run.yaml"]
+    command      = ["--config", "/config/config.yaml"]
     portMappings = [{ containerPort = 8321, protocol = "tcp" }]
     environment = [
       { name = "AWS_REGION", value = var.region },
       { name = "PGVECTOR_HOST", value = var.pgvector_host },
-      { name = "LLAMA_GUARD_URL", value = var.llama_guard_url },
+      { name = "POSTGRES_HOST", value = var.pgvector_host }, # OGX state in the same PostgreSQL
+      { name = "S3_BUCKET_NAME", value = aws_s3_bucket.files.bucket },
+      { name = "MODERATION_ENDPOINT", value = var.moderation_endpoint },
     ]
-    secrets = [{ name = "PGVECTOR_PASSWORD", valueFrom = var.pgvector_password_secret_arn }]
+    secrets = [
+      { name = "PGVECTOR_PASSWORD", valueFrom = var.pgvector_password_secret_arn },
+      { name = "POSTGRES_PASSWORD", valueFrom = var.pgvector_password_secret_arn },
+    ]
     logConfiguration = {
       logDriver = "awslogs"
       options = {
         awslogs-group         = aws_cloudwatch_log_group.this.name
         awslogs-region        = var.region
-        awslogs-stream-prefix = "llama-stack"
+        awslogs-stream-prefix = "ogx"
       }
     }
   }])

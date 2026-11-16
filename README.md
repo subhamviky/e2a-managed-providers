@@ -47,12 +47,13 @@ what it must.
 | `anthropic_claude_platform_aws` | Claude Platform on AWS (MCP connector, Managed Agents) | same AWS services | Bedrock Guardrails | Claude Managed Agents (`ant apply`) | `aws` | CloudWatch / X-Ray |
 | `openai_azure` | OpenAI on Azure AI Foundry (v1 Responses API, Entra ID) | text-embedding-3, Azure AI Search (hybrid + semantic ranker) | AI Content Safety (Prompt Shields) | Responses-API agent, APIM as MCP gateway | `azure`: Cosmos DB, Service Bus, outbox, Key Vault, Entra ID claims | Application Insights |
 | `google_vertex` | Gemini on Vertex AI | gemini-embedding, Vector Search (dense+sparse), Ranking API | Model Armor | Vertex AI Agent Engine, IAP MCP gateway | `gcp`: Firestore, Pub/Sub, outbox, Secret Manager, Identity Platform claims | Cloud Trace / Logging |
-| `meta_llama_aws` | Llama via a Llama Stack distribution (Bedrock inference) on ECS | Llama Stack embeddings + vector_io | Llama Guard shields | Llama Stack Responses API | `aws` | CloudWatch |
+| `ogx_aws` | Llama (or any model) via OGX, formerly Llama Stack, on ECS (Bedrock inference) | OGX embeddings + vector stores | Bedrock Guardrails (OGX moderation in its Responses loop, optional) | OGX Responses API | `aws` | CloudWatch |
 
 Each pairing is the one most commonly used in practice: Claude mostly runs on Bedrock (and
 on Claude Platform on AWS for Anthropic's full API surface), OpenAI on Azure, and Gemini on
-Vertex. Meta has no cloud of its own, so its enterprise path is Llama Stack hosted on a
-cloud; AWS is used here. Cohere appears where enterprises actually meet it, as the Bedrock
+Vertex. Meta has no cloud of its own; Llama runs on the clouds' AI platforms or self-hosted.
+The self-hosted path is OGX (formerly Llama Stack, renamed in April 2026), an open server the
+customer runs, here on AWS. `meta_llama_aws` remains for one release as an alias of `ogx_aws`. Cohere appears where enterprises actually meet it, as the Bedrock
 Rerank model. A fifth vendor was left out on purpose (see docs/CHALLENGES.md).
 
 `python -m e2a_managed matrix` prints the [capability matrix](docs/CAPABILITY_MATRIX.md),
@@ -106,7 +107,8 @@ e2a_managed/                     the vendor half; the neutral half is E2A's (doc
     anthropic_aws/   llm_service.py  delegated_runtime.py  managed_agents/  profiles/
     openai_azure/    llm_service.py  delegated_runtime.py  profiles/
     google_vertex/   llm_service.py  profiles/
-    meta_llama/      llm_service.py  infra.py  distribution/run.yaml  terraform/  profiles/
+    ogx/             llm_service.py  infra.py  distribution/config.yaml  terraform/  profiles/
+    meta_llama/      the meta_llama_aws alias profile and old class names (one release)
   clouds/                        services shared by every provider on a cloud
     aws/    bedrock.py  substrate.py  terraform/ (+ extensions/)
     azure/  services.py  terraform/
@@ -145,7 +147,7 @@ service is E2A's too, and this package keeps only the vendor half:
 |---|---|
 | `model_routes`; `refusal_fallback_server` skips E2A's route | `fallback_model_id` becomes a refusal route on every Claude profile (server-side fallback is not offered on the AWS platforms) |
 | the `features` map: E2A drops or refuses what a model cannot take, and checks every structured result | each adapter's `features` and its `reasoning_effort` mapping |
-| `ManagedGuardrailStage` and its egress variant: fail closed, `FirewallRefusal` | Bedrock Guardrails, Prompt Shields, Model Armor, Llama Guard (`_screen`) |
+| `ManagedGuardrailStage` and its egress variant: fail closed, `FirewallRefusal` | Bedrock Guardrails, Prompt Shields, Model Armor (`_screen`) |
 | `DelegatedRuntime`: read tools only, tenant-scoped tool calls, `delegated_max_turns` | Managed Agents, Responses API, AgentCore, Agent Engine sessions |
 | `BaseReranker` port, `dimensions` check | Bedrock Rerank, Vertex Ranking, Azure semantic ranker |
 | `_auth_headers` hook | gateway identity (AgentCore, APIM, IAP) |

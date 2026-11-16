@@ -2,11 +2,11 @@ digraph G {
   graph [rankdir=LR, compound=true, fontname="DejaVu Sans", fontsize=13, labelloc=t, label=<<b>OGX as a self-run front: E2A on the OpenAI wire, models behind OGX's providers</b>>, fontcolor="#1F3864", nodesep=0.3, ranksep=0.55, pad=0.25];
   node [shape=box, style="rounded,filled", fillcolor="#F4F8FC", color="#1F3864", fontname="DejaVu Sans", fontsize=10, fontcolor="#1F3864", margin="0.12,0.05"];
   edge [color="#2E4A6B", fontname="DejaVu Sans", fontsize=9];
-  subgraph cluster_e2a { label=<<b>E2A service (meta_llama_aws, extends aws)</b>>; style="rounded,filled"; fillcolor="#EAF2FA"; color="#2E75B6";
+  subgraph cluster_e2a { label=<<b>E2A service (ogx_aws, extends aws)</b>>; style="rounded,filled"; fillcolor="#EAF2FA"; color="#2E75B6";
     llm [label="llm_service\n(chat completions)"];
     rt [label="delegated_runtime\n(Responses loop)"];
     vi [label="vector_index\n(vector stores)"];
-    gs [label="guardrail stage\n(fail closed)"];
+    gs [label="guardrail stage (fail closed)\nBedrockGuardrailStage"];
   }
   subgraph cluster_ogx { label=<<b>OGX server (customer-run, ECS)</b>>; style="rounded,filled"; fillcolor="#FBF3E6"; color="#D4A017"; fontcolor="#7A5A00";
     api [label="stable OpenAI-compatible APIs\n/v1/chat/completions, /v1/responses,\n/v1/embeddings, /v1/vector_stores, /v1/prompts"];
@@ -16,8 +16,10 @@ digraph G {
   subgraph cluster_p { label=<<b>Providers configured in the distribution</b>>; style="rounded,filled"; fillcolor="#E6F4F5"; color="#0F7C8C"; fontcolor="#0F5C66";
     bed [label="Amazon Bedrock\n(AWS credential chain)"];
     self [label="self-hosted Llama weights\n(vLLM / Ollama)"];
-    pg [label="pgvector"];
+    pg [label="PostgreSQL: pgvector + server state"];
+    s3 [label="S3 (files)"];
   }
-  llm -> api; rt -> api; vi -> api; gs -> mod [xlabel="after migration"];
-  api -> bed; api -> self; api -> pg; api -> ten [style=dashed];
+  llm -> api; rt -> api; vi -> api; gs -> bgr;
+  bgr [label="Amazon Bedrock Guardrails\n(ApplyGuardrail)", fillcolor="#FFFFFF"];
+  api -> bed; api -> self; api -> pg; api -> s3; api -> ten [style=dashed];
 }

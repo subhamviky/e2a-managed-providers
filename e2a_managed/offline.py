@@ -8,7 +8,7 @@ No production access exists, so every managed adapter is exercised like this:
 
 The responder is any callable(messages) -> str | {"text", "tool_calls"}, or a project's
 existing SimulatedLLMService. That is how the three projects' deterministic rules drive
-a full Anthropic / OpenAI / Gemini / Llama Stack round trip in the example runners: the
+a full Anthropic / OpenAI / Gemini / OGX round trip in the example runners: the
 rules supply the content; everything between the agent and the HTTP boundary is the
 production code path. Recorded requests (`ReplayTransport.requests`) let tests assert
 on what would have been sent.
@@ -347,7 +347,7 @@ class ReplayTransport:
 
 
 # ------------------------------------------------------------------ offline clients per provider
-WIRE_OF_PROVIDER = {"anthropic": "anthropic", "openai": "openai_responses", "google": "gemini", "meta": "openai_chat"}
+WIRE_OF_PROVIDER = {"anthropic": "anthropic", "openai": "openai_responses", "google": "gemini", "ogx": "openai_chat"}
 
 
 def offline_client(provider: str, transport: ReplayTransport, config: Optional[Dict[str, Any]] = None):
@@ -376,10 +376,11 @@ def offline_client(provider: str, transport: ReplayTransport, config: Optional[D
                             credentials=Credentials(token="offline-replay-token"),
                             http_options=types.HttpOptions(httpx_async_client=httpx.AsyncClient(transport=transport.httpx()),
                                                            httpx_client=httpx.Client(transport=transport.httpx())))
-    if provider == "meta":
-        from llama_stack_client import AsyncLlamaStackClient
-        return AsyncLlamaStackClient(base_url="http://llama-stack.offline:8321", max_retries=0,
-                                     http_client=httpx.AsyncClient(transport=transport.httpx()))
+    if provider == "ogx":
+        import httpx2
+        from openai import AsyncOpenAI
+        return AsyncOpenAI(base_url="http://ogx.offline:8321/v1", api_key="unused", max_retries=0,
+                           http_client=httpx2.AsyncClient(transport=transport.httpx2()))
     raise ValueError(provider)
 
 

@@ -2,7 +2,7 @@
 
 The base is E2A's own since v1.6.1 (`e2a.DelegatedRuntime`): a managed runtime (Claude Managed
 Agents, Bedrock AgentCore Runtime, the OpenAI Responses API with hosted tools, Vertex AI Agent
-Engine, Llama Stack's Responses API) is the model step of one agent, never a replacement for it:
+Engine, OGX's Responses API) is the model step of one agent, never a replacement for it:
 
     BaseAgent.run():  screen -> _prepare -> decide -> _apply_policy -> _build_messages
                       -> infer  == DelegatedRuntime: one managed session      <- delegated

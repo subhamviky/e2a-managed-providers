@@ -10,7 +10,8 @@ from .conftest import PROFILES
 
 def test_every_profile_is_listed():
     # E2A's own registry lists them, next to E2A's 'simulated' profile and e2a-adapters' cloud profiles
-    assert sorted(available_profiles()) == sorted(PROFILES + ["simulated", "aws", "gcp", "azure"])
+    # plus meta_llama_aws, the alias of ogx_aws kept for one release
+    assert sorted(available_profiles()) == sorted(PROFILES + ["meta_llama_aws", "simulated", "aws", "gcp", "azure"])
 
 
 @pytest.mark.parametrize("name", PROFILES)

@@ -46,7 +46,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        profile: [anthropic_bedrock, anthropic_claude_platform_aws, openai_azure, google_vertex, meta_llama_aws]
+        profile: [anthropic_bedrock, anthropic_claude_platform_aws, openai_azure, google_vertex, ogx_aws]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -102,7 +102,7 @@ jobs:
           - e2a_managed/clouds/aws/terraform
           - e2a_managed/clouds/azure/terraform
           - e2a_managed/clouds/gcp/terraform
-          - e2a_managed/providers/meta_llama/terraform
+          - e2a_managed/providers/ogx/terraform
     defaults:
       run:
         working-directory: ${{ matrix.module }}

@@ -21,7 +21,7 @@ from e2a.port_contract import check_checkpoint_store, check_idempotency_store
 from .conftest import PROFILES
 
 COSMOS_EMULATOR_KEY = "C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw=="
-CLOUD_OF = {"anthropic_bedrock": "aws", "anthropic_claude_platform_aws": "aws", "meta_llama_aws": "aws",
+CLOUD_OF = {"anthropic_bedrock": "aws", "anthropic_claude_platform_aws": "aws", "ogx_aws": "aws",
             "google_vertex": "gcp", "openai_azure": "azure"}
 BROKER_OF = {"aws": "SQSBroker", "gcp": "PubSubBroker", "azure": "ServiceBusBroker"}
 
@@ -70,7 +70,7 @@ def test_the_configured_table_name_is_used(aws_env, monkeypatch):
     with mock_aws():
         client = boto3.client("dynamodb", region_name="us-east-1")
         _tables(client, "claims-prod")
-        store = bindings_from_profile("meta_llama_aws").idempotency_store
+        store = bindings_from_profile("ogx_aws").idempotency_store
         claim = store.claim("k", tenant_id="acme")
         assert store.complete("k", {"ok": True}, tenant_id="acme", owner=claim.owner)
         assert client.scan(TableName="claims-prod")["Count"] == 1

@@ -44,7 +44,7 @@ A profile would `extend` the `gcp` cloud profile (Firestore, Pub/Sub, Secret Man
 | `mcp_gateway_tool` | `IAPGatewayTool` (MCP servers behind IAP, called host-side) |
 | `observability_engine`, `infra_provisioner`, `release_pipeline` | the GCP substrate classes |
 
-For **gpt-oss-120b**, the transport is Chat Completions. `LlamaStackLLMService` already sends that wire, and the codec maps `finish_reason: "content_filter"` to a refusal. A subclass with a Google client (base URL and ADC token) is what remains before a profile.
+For **gpt-oss-120b**, the transport is Chat Completions. `OGXLLMService` already sends that wire, and the codec maps `finish_reason: "content_filter"` to a refusal. A subclass with a Google client (base URL and ADC token) is what remains before a profile.
 
 ## 3. Dispositions that differ from the core
 

@@ -7,8 +7,8 @@ itself; function tools come back to the caller. This runtime:
   * optionally adds remote MCP servers (`mcp_servers`, read-only, require_approval never);
   * stops at `delegated_max_turns` round trips; the E2A request deadline bounds the whole run.
 
-The same class drives OpenAI on Azure and Llama Stack's OpenAI-compatible Responses API
-(meta_llama binds a subclass that only changes the client).
+The same class drives OpenAI on Azure and OGX's OpenAI-compatible Responses API
+(the ogx profile binds a subclass that changes the client and adds OGX's tenant header).
 """
 import json
 from typing import Any, Dict, List
@@ -26,6 +26,10 @@ class ResponsesAgentRuntime(DelegatedRuntime):
         return AsyncOpenAI(base_url=azure_v1_base_url(self._resolve_param("azure_openai_endpoint", config, kwargs)),
                            api_key=azure_openai_credential(config, kwargs),
                            max_retries=int(self._resolve_param("llm_sdk_max_retries", config, kwargs)))
+
+    def _request_extras(self, config, tenant_id) -> Dict[str, Any]:
+        """SDK-level extras (extra_headers / extra_body) a platform adds to every request."""
+        return {}
 
     def _model(self, config, kwargs) -> str:
         return self._resolve_param("delegated_runtime_id", config, kwargs) or \
@@ -49,6 +53,7 @@ class ResponsesAgentRuntime(DelegatedRuntime):
                 req["tools"] = tools
             if effort:
                 req["reasoning"] = {"effort": effort}
+            req.update(self._request_extras(cfg, tenant_id))
             out = openai_responses_to_result(await client.responses.create(**req))
             used_in += out["metadata"]["input_tokens"]
             used_out += out["metadata"]["output_tokens"]

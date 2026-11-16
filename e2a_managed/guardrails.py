@@ -1,8 +1,7 @@
 """Managed guardrails as E2A governance stages.
 
 The base is E2A's own since v1.6.1 (`e2a.ManagedGuardrailStage`): a managed classifier
-(Bedrock Guardrails, Azure AI Content Safety Prompt Shields, Google Model Armor, Llama Guard
-via Llama Stack shields) is one more IngressStage next to E2A's pattern FirewallStage, and
+(Bedrock Guardrails, Azure AI Content Safety Prompt Shields, Google Model Armor) is one more IngressStage next to E2A's pattern FirewallStage, and
 E2A owns the rules for every one of them:
   * the fields screened are `guardrail_fields`;
   * a block is FirewallRefusal, whichever service screened the request;

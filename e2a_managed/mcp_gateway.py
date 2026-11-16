@@ -6,7 +6,7 @@ in front of them and adds identity, authorization, rate limits and audit:
     AWS     Bedrock AgentCore Gateway (OAuth/JWT inbound, IAM outbound)
     Azure   API Management MCP server support (subscription key / Entra ID)
     GCP     Apigee or Cloud Run + IAP (Google ID token)
-    Meta    Llama Stack tool runtime (MCP provider) behind the platform's ingress
+    OGX     OGX tool runtime (MCP provider) behind the platform's ingress
 
 E2A's MCPToolService already speaks MCP Streamable HTTP (JSON-RPC tools/call over
 POST) and reuses BaseToolService's resilience, commit gate and typed outcomes. Only
@@ -80,7 +80,7 @@ class ManagedMCPGatewayTool(MCPToolService):
 
 
 class BearerGatewayTool(ManagedMCPGatewayTool):
-    """OAuth/JWT bearer (AgentCore Gateway inbound auth, Apigee, Llama Stack ingress).
+    """OAuth/JWT bearer (AgentCore Gateway inbound auth, Apigee, OGX ingress).
     The token comes from kwargs['gateway_token'] (per call) or config/env `auth_token`."""
 
     def _auth_headers(self, endpoint, config=None, **kwargs):

@@ -1,0 +1,97 @@
+# OGX distribution for the ogx_aws profile (shipped to the ECS service as /config/config.yaml).
+# Format: OGX "Customizing config.yaml" (version 2). Check field names against the pinned OGX
+# server version when you deploy.
+version: 2
+distro_name: e2a-ogx-aws
+apis: [inference, vector_io, files, responses, prompts, tool_runtime]
+providers:
+  inference:
+    - provider_id: bedrock                 # Llama models on Amazon Bedrock; AWS credential chain (the task role)
+      provider_type: remote::bedrock
+      config:
+        region_name: ${env.AWS_REGION:=us-east-1}
+  vector_io:
+    - provider_id: pgvector                # Aurora PostgreSQL with pgvector
+      provider_type: remote::pgvector
+      config:
+        host: ${env.PGVECTOR_HOST}
+        port: ${env.PGVECTOR_PORT:=5432}
+        db: ${env.PGVECTOR_DB:=ogx}
+        user: ${env.PGVECTOR_USER:=ogx}
+        password: ${env.PGVECTOR_PASSWORD}   # injected from Secrets Manager by ECS (same database)
+        distance_metric: COSINE
+  files:
+    - provider_id: s3-files                # uploaded files in S3; the task role grants access (no keys)
+      provider_type: remote::s3
+      config:
+        bucket_name: ${env.S3_BUCKET_NAME}
+        region: ${env.AWS_REGION:=us-east-1}
+        key_prefix: ogx/files
+        metadata_store:
+          backend: sql_default
+          table_name: files_metadata
+  responses:
+    - provider_id: builtin
+      provider_type: inline::builtin
+      config:
+        moderation_endpoint: ${env.MODERATION_ENDPOINT:+}   # OpenAI-compatible; empty: guardrails off
+        persistence:
+          agent_state:
+            backend: kv_default
+            namespace: agents
+          responses:
+            backend: sql_default
+            table_name: responses
+  tool_runtime:
+    - provider_id: model-context-protocol  # MCP servers (the E2A services' /mcp routes)
+      provider_type: remote::model-context-protocol
+      config: {}
+storage:
+  # PostgreSQL, not SQLite: the service runs more than one task, and task disks are ephemeral.
+  # Backend types as in OGX's starter "run-with-postgres-store.yaml"; check them against the
+  # pinned OGX version when you deploy.
+  backends:
+    kv_default:
+      type: kv_postgres
+      host: ${env.POSTGRES_HOST}
+      port: ${env.POSTGRES_PORT:=5432}
+      db: ${env.POSTGRES_DB:=ogx}
+      user: ${env.POSTGRES_USER:=ogx}
+      password: ${env.POSTGRES_PASSWORD}
+    sql_default:
+      type: sql_postgres
+      host: ${env.POSTGRES_HOST}
+      port: ${env.POSTGRES_PORT:=5432}
+      db: ${env.POSTGRES_DB:=ogx}
+      user: ${env.POSTGRES_USER:=ogx}
+      password: ${env.POSTGRES_PASSWORD}
+  stores:
+    metadata:
+      backend: kv_default
+      namespace: registry
+    inference:
+      backend: sql_default
+      table_name: inference_store
+    conversations:
+      backend: sql_default
+      table_name: openai_conversations
+    prompts:
+      backend: kv_default
+      namespace: prompts
+models:
+  - model_id: meta.llama4-maverick-17b-instruct-v1:0   # Bedrock: Legacy, end of life 30 Mar 2027
+    provider_id: bedrock
+    model_type: llm
+  - model_id: amazon.titan-embed-text-v2:0
+    provider_id: bedrock
+    model_type: embedding
+    metadata: {embedding_dimension: 1024}
+server:
+  port: 8321
+  tenancy:
+    mode: multi                            # every row partitioned by tenant; no tenant, no data
+  auth:
+    provider_config:
+      type: upstream_header                # only the E2A services can reach the server (security group)
+      principal_header: x-e2a-service
+      tenant_header: x-tenant-id
