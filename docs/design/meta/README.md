@@ -9,10 +9,10 @@ The plan for this series assumed Meta offered a managed stack around Llama. Chec
 
 So the series has two documents, split by **who operates** the model endpoint. Each records only what differs from the [core design](../core/E2A_MANAGED_PROVIDERS_CORE_DESIGN.md).
 
-| Document | Operator | Status here | Word |
+| Document | Operator | Status here | PDF |
 |---|---|---|---|
-| [Llama on cloud AI platforms](LLAMA_ON_CLOUD_PLATFORMS_DESIGN.md) | AWS (Bedrock), Google (Agent Platform), Microsoft (Foundry) | Documented; Bedrock Llama used today through OGX | [docx](Llama_on_Cloud_Platforms_Design.docx) |
-| [OGX (formerly Llama Stack) and self-hosted Llama](OGX_SELF_HOSTED_LLAMA_DESIGN.md) | the customer | Implemented (`ogx_aws` on OGX 1.x; `meta_llama_aws` kept as an alias) | [docx](OGX_Self_Hosted_Llama_Design.docx) |
+| [Llama on cloud AI platforms](LLAMA_ON_CLOUD_PLATFORMS_DESIGN.md) | AWS (Bedrock), Google (Agent Platform), Microsoft (Foundry) | Documented; Bedrock Llama used today through OGX | [PDF](Llama_on_Cloud_Platforms_Design.pdf) |
+| [OGX (formerly Llama Stack) and self-hosted Llama](OGX_SELF_HOSTED_LLAMA_DESIGN.md) | the customer | Implemented (`ogx_aws` on OGX 1.x; `meta_llama_aws` kept as an alias) | [PDF](OGX_Self_Hosted_Llama_Design.pdf) |
 
 **What changes E2A's part:**
 - **Lifecycle first.** Azure retires Llama 4 Maverick on 19 November 2026, and Bedrock's Llama models are Legacy until 30 March 2027. A release-pipeline lifecycle check and a non-Llama `model_routes` entry are the design.
