@@ -4,10 +4,10 @@
 
 Google operates Gemini on both routes, but the routes differ in identity (an API key, or Google Cloud IAM), terms, and the services around the model. Hence two documents. Use from AWS or Azure is a section of the Google Cloud document, because the platform, model and terms are the same; only identity and network change. Each document records only what differs from the [core design](../core/E2A_MANAGED_PROVIDERS_CORE_DESIGN.md).
 
-| Document | Covers | Status here | Word |
+| Document | Covers | Status here | PDF |
 |---|---|---|---|
-| [Gemini Developer API](GEMINI_API_DESIGN.md) | API key; Interactions API and `generateContent`; managed agents (preview); remote MCP; File Search | Documented | [docx](Gemini_API_Design.docx) |
-| [Gemini on Google Cloud](GEMINI_ON_GOOGLE_CLOUD_DESIGN.md) | Gemini Enterprise Agent Platform (formerly Vertex AI), from Google Cloud and from AWS or Azure through workload identity federation | **Implemented** (`google_vertex`); from AWS or Azure Documented | [docx](Gemini_on_Google_Cloud_Design.docx) |
+| [Gemini Developer API](GEMINI_API_DESIGN.md) | API key; Interactions API and `generateContent`; managed agents (preview); remote MCP; File Search | Documented | [PDF](Gemini_API_Design.pdf) |
+| [Gemini on Google Cloud](GEMINI_ON_GOOGLE_CLOUD_DESIGN.md) | Gemini Enterprise Agent Platform (formerly Vertex AI), from Google Cloud and from AWS or Azure through workload identity federation | **Implemented** (`google_vertex`); from AWS or Azure Documented | [PDF](Gemini_on_Google_Cloud_Design.pdf) |
 
 **What changes E2A's part:**
 - **The model lifecycle is now a design concern.** The profile's default, `gemini-2.5-pro`, was retired on Agent Platform on 20 October 2026. This step moves the default to `gemini-3.8-flash`.

@@ -14,11 +14,11 @@ They are reference documents, not product guides.
 1. Start with the **core design**. It defines the decision model, the four owners, the seams, the E2A responsibilities written once, and the sequences shared by every provider.
 2. Then read a provider's folder. Each provider document records only what differs from the core for that provider and hosting pattern.
 
-Each document exists as Markdown (read here) and as a Word file beside it (for sharing).
+Each document exists as Markdown (read here) and as a PDF beside it (for reading on any device, and for sharing).
 
-| Document | Contents | Word |
+| Document | Contents | PDF |
 |---|---|---|
-| [Core design](core/E2A_MANAGED_PROVIDERS_CORE_DESIGN.md) | Disposition model and replacement gate; HLD (owners, hosting patterns, capability packs); LLD (seams, profile composition, kernel dispositions); common sequences; failure, security and evidence models | [docx](core/E2A_Managed_Providers_Core_Design.docx) |
+| [Core design](core/E2A_MANAGED_PROVIDERS_CORE_DESIGN.md) | Disposition model and replacement gate; HLD (owners, hosting patterns, capability packs); LLD (seams, profile composition, kernel dispositions); common sequences; failure, security and evidence models | [PDF](core/E2A_Managed_Providers_Core_Design.pdf) |
 | [Anthropic](anthropic/README.md) | Four documents by operator: Claude operated by Anthropic (Claude API, Claude Platform on AWS, Google Cloud Anthropic managed); Claude on Amazon Bedrock; Claude on Google Cloud (Google managed); Claude in Microsoft Foundry | in the folder |
 | [OpenAI](openai/README.md) | Four documents by operator: OpenAI API (OpenAI operates); OpenAI in Microsoft Foundry (Implemented, `openai_azure`); OpenAI on Amazon Bedrock; OpenAI on Google Cloud | in the folder |
 | [Google Gemini](gemini/README.md) | Two documents: Gemini Developer API; Gemini on Google Cloud (Implemented, `google_vertex`), including use from AWS and Azure | in the folder |

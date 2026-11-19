@@ -4,12 +4,12 @@
 
 OpenAI models reach an E2A service by four routes. They split by **who operates the service**, which decides the data processor, the identity, the billing and which hosted features exist. Hence four documents. Each records only what differs from the [core design](../core/E2A_MANAGED_PROVIDERS_CORE_DESIGN.md).
 
-| Document | Operator | Agent runtime offered · remote MCP by the service · hosted file search | Status here | Word |
+| Document | Operator | Agent runtime offered · remote MCP by the service · hosted file search | Status here | PDF |
 |---|---|---|---|---|
-| [OpenAI API](OPENAI_API_DESIGN.md) | OpenAI | Agents API · yes · yes | Documented (the Responses wire is Implemented) | [docx](OpenAI_API_Design.docx) |
-| [OpenAI in Microsoft Foundry](OPENAI_IN_MICROSOFT_FOUNDRY_DESIGN.md) | Microsoft | Foundry Agent Service · yes · Foundry tools | **Implemented** (`openai_azure`) | [docx](OpenAI_in_Microsoft_Foundry_Design.docx) |
-| [OpenAI on Amazon Bedrock](OPENAI_ON_AMAZON_BEDROCK_DESIGN.md) | AWS | Bedrock Managed Agents (preview) · no · no | Documented | [docx](OpenAI_on_Amazon_Bedrock_Design.docx) |
-| [OpenAI on Google Cloud](OPENAI_ON_GOOGLE_CLOUD_DESIGN.md) | Google Cloud perimeter (frontier models: private preview); gpt-oss-120b managed API (GA) | none · no (client-run only) · no | Documented | [docx](OpenAI_on_Google_Cloud_Design.docx) |
+| [OpenAI API](OPENAI_API_DESIGN.md) | OpenAI | Agents API · yes · yes | Documented (the Responses wire is Implemented) | [PDF](OpenAI_API_Design.pdf) |
+| [OpenAI in Microsoft Foundry](OPENAI_IN_MICROSOFT_FOUNDRY_DESIGN.md) | Microsoft | Foundry Agent Service · yes · Foundry tools | **Implemented** (`openai_azure`) | [PDF](OpenAI_in_Microsoft_Foundry_Design.pdf) |
+| [OpenAI on Amazon Bedrock](OPENAI_ON_AMAZON_BEDROCK_DESIGN.md) | AWS | Bedrock Managed Agents (preview) · no · no | Documented | [PDF](OpenAI_on_Amazon_Bedrock_Design.pdf) |
+| [OpenAI on Google Cloud](OPENAI_ON_GOOGLE_CLOUD_DESIGN.md) | Google Cloud perimeter (frontier models: private preview); gpt-oss-120b managed API (GA) | none · no (client-run only) · no | Documented | [PDF](OpenAI_on_Google_Cloud_Design.pdf) |
 
 **What changes E2A's part:**
 - **One wire everywhere.** All four offer OpenAI's Responses API, so `OpenAIResponsesLLMService` is written once and only the client (base URL, credential) changes. gpt-oss on Google uses Chat Completions.
