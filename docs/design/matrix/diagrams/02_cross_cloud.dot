@@ -1,0 +1,17 @@
+digraph G {
+  graph [rankdir=LR, fontname="DejaVu Sans", fontsize=13, labelloc=t, label=<<b>A model in another cloud: two identities, one federation step</b>>, fontcolor="#1F3864", nodesep=0.35, ranksep=1.0, pad=0.25];
+  node [shape=box, style="rounded,filled", fillcolor="#F4F8FC", color="#1F3864", fontname="DejaVu Sans", fontsize=10, fontcolor="#1F3864", margin="0.12,0.05"];
+  edge [color="#2E4A6B", fontname="DejaVu Sans", fontsize=9];
+  subgraph cluster_c { label=<<b>Calling E2A service</b>>; style="rounded,filled"; fillcolor="#EAF2FA"; color="#2E75B6";
+    aws [label="on AWS\nIAM role"]; gcp [label="on Google Cloud\nservice account"]; az [label="on Azure\nmanaged identity"]; }
+  subgraph cluster_m { label=<<b>Model host</b>>; style="rounded,filled"; fillcolor="#E6F4F5"; color="#0F7C8C";
+    bed [label="Amazon Bedrock\n(Claude, OpenAI, Llama)"]; vtx [label="Google Agent Platform\n(Gemini, Claude, Llama, gpt-oss)"]; fdy [label="Microsoft Foundry\n(OpenAI, Claude, Llama)"]; api [label="Provider API\n(Anthropic, OpenAI, Google)"]; }
+  aws -> bed [label="native: SigV4"];
+  gcp -> vtx [label="native: ADC"];
+  az -> fdy [label="native: Entra token"];
+  aws -> vtx [label="workload identity federation\n(Documented for Gemini)", style=dashed];
+  az -> vtx [label="workload identity federation\n(Documented for Gemini)", style=dashed];
+  gcp -> fdy [label="Entra federated credential\n(To validate)", style=dashed];
+  gcp -> bed [label="OIDC federation into AWS\n(To validate)", style=dashed];
+  aws -> api [label="API key from secret store, or\nOpenAI workload identity federation", style=dotted];
+}
