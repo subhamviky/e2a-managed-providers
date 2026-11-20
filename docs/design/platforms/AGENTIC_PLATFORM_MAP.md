@@ -11,7 +11,7 @@
 | Author | Subham Gupta, Principal Platform Architect |
 | Source baseline | `subhamviky/e2a-framework` `v1.8.0`; `subhamviky/a2c-framework` `v1.5.4`; `subhamviky/e2a-managed-providers` `main` (profiles under `e2a_managed/providers/*/profiles`, cloud classes under `e2a_managed/clouds/*`); vendor sources checked on 20 November 2026 |
 | Date | 20 November 2026 |
-| Status | Plan: hub design note MP-07 (decisions D1 to D6 as recommended). Facts dated; see Section 13 |
+| Status | Reference. Provider facts dated 20 November 2026; see Section 13 |
 
 > **Disclaimer.** This is independent reference material for studying software architecture. It has no affiliation with, and no endorsement by, any company named, and it is not a substitute for any provider's products, documentation or terms. Product names are trademarks of their owners. Product facts change quickly in this field: check the provider's current documentation. Provided "as is", without warranty; not legal, compliance, security or procurement advice. The full text is in [DISCLAIMER.md](../DISCLAIMER.md).
 
@@ -19,13 +19,11 @@
 
 ### 1.1 Purpose
 
-A first proposal mapped the four frameworks one-to-one onto four layers of AWS's and Microsoft's stacks. Its intent holds: the providers now sell, as managed products, the same kinds of capability the E2A family provides. Read literally, though, most of its rows mixed a framework's *role* with its *mechanism*. P0, for example, plays the role of "set the ground rules before code", as Kiro's steering files do, but P0 itself generates a project's structure, while steering is standing context for an agent.
-
-This document therefore keeps both:
-- the **conceptual view** (Section 3): the role each framework plays, and the provider capability that plays the same role. This is what a reader remembers;
+The major providers now offer, as managed products, the same kinds of capability the E2A family provides: context and conventions for coding agents, specifications before code, governed agent runtimes, verification, and agents that change existing code. This document maps them to the family at two levels:
+- the **conceptual view** (Section 3): the role each framework plays, and the provider capability that plays the same role;
 - the **mechanism view** (Sections 4 and 5): what each capability actually is, whether it replaces, extends, adapts, composes with or leaves to the family, and what is implemented here.
 
-Neither view is complete without the other. A conceptual cell without its mechanism cell overstates; a mechanism table without the conceptual frame loses the point.
+A role can be the same while the mechanism differs. P0 and Kiro's steering files both set ground rules before code is written, but P0 generates a project's structure, while steering is standing context for an agent. Each conceptual cell therefore has its mechanism cell in Sections 4 and 5.
 
 ### 1.2 Audience
 
@@ -67,7 +65,7 @@ Neither view is complete without the other. A conceptual cell without its mechan
 | L4 | Verification and evidence | A2C's Phase C checks, E2A's release gate (`e2a.release`), the observability seam | Nothing reaches production unchecked, and behaviour stays visible |
 | L5 | Change and provenance | `aidlc-change`, and the developer's trail (hub note AD-01): developer as author, `Assisted-by`, change records | Agents changing existing code, with an accountable person and an audit trail |
 
-L1, L2 and L5 belong to building software; L3 to running agents; L4 to both. The first proposal had L1 to L4. L5 is added because every provider now ships a coding agent that commits, and the research for AD-01 showed that how such commits are attributed is unsettled across the industry.
+L1, L2 and L5 belong to building software; L3 to running agents; L4 to both. Every provider now ships a coding agent that commits code (L5), and how such commits are attributed differs from provider to provider (Section 4).
 
 ## 3. The conceptual map
 
@@ -172,8 +170,6 @@ Rows are E2A responsibilities and seams (core design, Section 4.1). Cells name t
 **How E2A binds today.** The `openai_azure` profile binds `ResponsesAgentRuntime`, `APIMGatewayTool`, `AzureContentSafetyStage`, Azure AI Search with the semantic ranker, and `AzureObservability`. Service-to-service identity uses Entra as the single issuer (SI-01, E2A v1.8.0). Stores come from e2a-adapters (Cosmos DB).
 
 **What Microsoft adds.** Guardrails on tool calls and tool responses; Entra Agent ID; managed memory; online evaluation and optimisation.
-
-**Not confirmed, not used.** "Foundry Agent Harness" (as a Foundry product), "Repo Blueprints", "1,400+ MCP connectors" from the first proposal.
 
 ## 8. Google
 
