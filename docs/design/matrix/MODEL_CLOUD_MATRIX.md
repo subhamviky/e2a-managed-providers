@@ -165,6 +165,7 @@ It has been removed, and each part is now covered here or elsewhere:
 - **Source of facts.** Product facts live in the provider documents, each with its sources and the date checked. When a provider document changes a status or an offering, update the matching cell here in the same change.
 - **New combinations.** A new combination gets a provider document first (or a variant section in one), then a row or cell here.
 - **Status changes.** A combination becomes Implemented only with a profile and passing CI, including the project suites.
+- **Agentic platforms.** What each provider offers around the model for building and running agents (coding tools, agent SDKs, managed runtimes, gateways, policy, memory, evaluation) is mapped to the E2A family in [Agentic Platforms × E2A Family](../platforms/AGENTIC_PLATFORM_MAP.md).
 - **Rendering.** The figures are rendered from `diagrams/` (Graphviz); the PDF is built with the hub's `tools/docx` converter.
 
 ```bash
