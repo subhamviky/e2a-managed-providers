@@ -1,0 +1,17 @@
+digraph layers {
+  rankdir=TB; nodesep=0.25; ranksep=0.25; newrank=true;
+  node [shape=box, style="rounded,filled", fontname="Helvetica", fontsize=10, fillcolor="#EEF3FA", color="#1F3864", width=2.6];
+  label="Two halves, five conceptual layers: the E2A family and the providers"; labelloc=t; fontname="Helvetica-Bold"; fontsize=12;
+  subgraph cluster_build { label="Building software (agentic coding)"; fontname="Helvetica-Bold"; fontsize=11; style="rounded,dashed"; color="#7F7F7F";
+    L1 [label="L1 Context and conventions\nfamily: A2C mandatory NFRs, E2A conformance, P0 structure\nproviders: steering, AGENTS.md, CLAUDE.md, constitution"];
+    L2 [label="L2 Intent to structured synthesis\nfamily: AI-DLC request -> A2C spec -> G2C classes\nproviders: Kiro specs, Spec Kit, plans and tasks"];
+    L5 [label="L5 Change and provenance\nfamily: aidlc-change, AD-01 developer trail\nproviders: Kiro agent, Copilot agent, Claude Code, Codex, Antigravity", fillcolor="#FFF2CC", color="#BF9000"];
+  }
+  subgraph cluster_run { label="Running agents (agent SDKs and managed platforms)"; fontname="Helvetica-Bold"; fontsize=11; style="rounded,dashed"; color="#7F7F7F";
+    L3 [label="L3 Governed agent runtime (what L2 generates runs here)\nfamily: E2A (lifecycle, stages, idempotent tools, identity)\n+ e2a-managed-providers bindings\nproviders: Strands/AgentCore, Agent Framework/Foundry,\nADK/Agent Platform, Claude Agent SDK/Managed Agents,\nAgents SDK/Agents API"];
+  }
+  L4 [label="L4 Verification and evidence (both halves)\nfamily: A2C Phase C, E2A release gate, observability seam\nproviders: hooks, property tests, code review, online evaluations, tracing", fillcolor="#E2EFDA", color="#38761D", width=5.6];
+  L1 -> L2 -> L5 [color="#555555"];
+  L2 -> L3 [style=dashed, color="#555555"];
+  L5 -> L4; L3 -> L4;
+}

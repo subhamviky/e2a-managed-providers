@@ -13,7 +13,8 @@ They are reference documents, not product guides.
 
 1. Start with the **core design**. It defines the decision model, the four owners, the seams, the E2A responsibilities written once, and the sequences shared by every provider.
 2. Then read the **models × clouds matrix**. It maps every model family to every cloud, with the hosting pattern, status and governing document of each combination, and what each cloud adds around the model.
-3. Then read a provider's folder. Each provider document records only what differs from the core for that provider and hosting pattern.
+3. For agents rather than models, read the **agentic platforms map**. It maps the coding tools and managed agent platforms of AWS, Microsoft, Google, Anthropic and OpenAI to P0, G2C, A2C and E2A, as a conceptual view and a mechanism view.
+4. Then read a provider's folder. Each provider document records only what differs from the core for that provider and hosting pattern.
 
 Each document exists as Markdown (read here) and as a PDF beside it (for reading on any device, and for sharing).
 
@@ -21,6 +22,7 @@ Each document exists as Markdown (read here) and as a PDF beside it (for reading
 |---|---|---|
 | [Core design](core/E2A_MANAGED_PROVIDERS_CORE_DESIGN.md) | Disposition model and replacement gate; HLD (owners, hosting patterns, capability packs); LLD (seams, profile composition, kernel dispositions); common sequences; failure, security and evidence models | [PDF](core/E2A_Managed_Providers_Core_Design.pdf) |
 | [Models × clouds matrix](matrix/MODEL_CLOUD_MATRIX.md) | Every model family on every cloud: hosting pattern, status, profile and governing document per combination; cross-cloud (P4) rules; the services each cloud adds around the model. Replaces the former E2A Multi-Cloud Reference | [PDF](matrix/Model_Cloud_Matrix.pdf) |
+| [Agentic platforms × E2A family](platforms/AGENTIC_PLATFORM_MAP.md) | The agentic coding tools and managed agent platforms of AWS, Microsoft, Google, Anthropic and OpenAI against P0, G2C, A2C and E2A: five conceptual layers, a mechanism map for building software and one for running agents (disposition and status per seam), one section per provider, cross-vendor standards (MCP, AGENTS.md, A2A, OpenTelemetry GenAI), gaps and backlog candidates | [PDF](platforms/Agentic_Platform_Map.pdf) |
 | [Anthropic](anthropic/README.md) | Four documents by operator: Claude operated by Anthropic (Claude API, Claude Platform on AWS, Google Cloud Anthropic managed); Claude on Amazon Bedrock; Claude on Google Cloud (Google managed); Claude in Microsoft Foundry | in the folder |
 | [OpenAI](openai/README.md) | Four documents by operator: OpenAI API (OpenAI operates); OpenAI in Microsoft Foundry (Implemented, `openai_azure`); OpenAI on Amazon Bedrock; OpenAI on Google Cloud | in the folder |
 | [Google Gemini](gemini/README.md) | Two documents: Gemini Developer API; Gemini on Google Cloud (Implemented, `google_vertex`), including use from AWS and Azure | in the folder |
