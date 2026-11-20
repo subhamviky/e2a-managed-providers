@@ -13,7 +13,7 @@
 | Date | 20 November 2026 |
 | Status | Reference. Provider facts dated 20 November 2026; see Section 13 |
 
-> **Disclaimer.** This is independent reference material for studying software architecture. It has no affiliation with, and no endorsement by, any company named, and it is not a substitute for any provider's products, documentation or terms. Product names are trademarks of their owners. Product facts change quickly in this field: check the provider's current documentation. Provided "as is", without warranty; not legal, compliance, security or procurement advice. The full text is in [DISCLAIMER.md](../DISCLAIMER.md).
+> **Disclaimer.** This is independent reference material for studying software architecture. It has no affiliation with, and no endorsement by, any company named, and it is not a substitute for any provider's products, documentation or terms. Product names are trademarks of their owners. Comparisons between products, and between products and the E2A family, are the author's architectural reading of public documentation: not a statement by any provider, not a compatibility claim, and not an evaluation or ranking. "None found" means not found in the sources checked by the date stated. Facts come from public sources, some secondary (marked *To validate*); preview features may change or be withdrawn; the selection of providers is not exhaustive. Product facts change quickly in this field: check the provider's current documentation. The views are the author's own and do not represent any employer. Prepared with AI assistance and reviewed by the author. Provided "as is", without warranty; not legal, compliance, security or procurement advice. The full text is in [DISCLAIMER.md](../DISCLAIMER.md).
 
 ## 1. Introduction
 
