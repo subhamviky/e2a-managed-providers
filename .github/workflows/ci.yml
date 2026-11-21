@@ -25,7 +25,7 @@ jobs:
           docker run -d --name ddb -p 8000:8000 amazon/dynamodb-local:latest -jar DynamoDBLocal.jar -inMemory -port 8000
           docker run -d --name firestore -p 8085:8085 gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators \
             gcloud emulators firestore start --host-port=0.0.0.0:8085
-          docker run -d --name cosmos -p 8081:8081 mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:vnext-preview
+          docker run -d --name cosmos -p 8081:8081 mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator@sha256:db53613dae19d0a3d5ad50688d14aa6e957af082dafea56b52e1bd3a6b3f1406
           for port in 8000 8085 8081; do
             for _ in $(seq 90); do curl -s -o /dev/null "http://127.0.0.1:$port/" && break; sleep 2; done
           done
@@ -74,7 +74,7 @@ jobs:
         run: |
           docker run -d --name firestore -p 8085:8085 gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators \
             gcloud emulators firestore start --host-port=0.0.0.0:8085
-          docker run -d --name cosmos -p 8081:8081 mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:vnext-preview
+          docker run -d --name cosmos -p 8081:8081 mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator@sha256:db53613dae19d0a3d5ad50688d14aa6e957af082dafea56b52e1bd3a6b3f1406
           for _ in $(seq 90); do curl -s -o /dev/null http://127.0.0.1:8085/ && break; sleep 2; done
           for _ in $(seq 90); do docker logs cosmos 2>&1 | grep -q "Gateway=OK" && break; sleep 2; done
       - name: Project test suites on ${{ matrix.profile }} (offline replay, one venv per project)
