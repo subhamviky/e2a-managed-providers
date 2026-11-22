@@ -9,8 +9,8 @@
 | Framework | E2A family: AI-DLC (P0, G2C, A2C) and E2A, with `e2a-adapters` and `e2a-managed-providers` |
 | Document type | Design Document, map of the provider design series (agentic platforms) |
 | Author | Subham Gupta, Principal Platform Architect |
-| Source baseline | `subhamviky/e2a-framework` `v1.8.0`; `subhamviky/a2c-framework` `v1.5.4`; `subhamviky/e2a-managed-providers` `main` (profiles under `e2a_managed/providers/*/profiles`, cloud classes under `e2a_managed/clouds/*`); vendor sources checked on 20 November 2026 |
-| Date | 20 November 2026 |
+| Source baseline | `subhamviky/e2a-framework` `v1.9.1`; `subhamviky/a2c-framework` `v1.6.0`; `subhamviky/e2a-managed-providers` `main` (profiles under `e2a_managed/providers/*/profiles`, cloud classes under `e2a_managed/clouds/*`); vendor sources checked on 20 November 2026 |
+| Date | 21 November 2026 (online evaluation, Sections 5.1, 5.3 and 12; first issue 20 November 2026) |
 | Status | Reference. Provider facts dated 20 November 2026; see Section 13 |
 
 > **Disclaimer.** This is independent reference material for studying software architecture. It has no affiliation with, and no endorsement by, any company named, and it is not a substitute for any provider's products, documentation or terms. Product names are trademarks of their owners. Comparisons between products, and between products and the E2A family, are the author's architectural reading of public documentation: not a statement by any provider, not a compatibility claim, and not an evaluation or ranking. "None found" means not found in the sources checked by the date stated. Facts come from public sources, some secondary (marked *To validate*); preview features may change or be withdrawn; the selection of providers is not exhaustive. Product facts change quickly in this field: check the provider's current documentation. The views are the author's own and do not represent any employer. Prepared with AI assistance and reviewed by the author. Provided "as is", without warranty; not legal, compliance, security or procurement advice. The full text is in [DISCLAIMER.md](../DISCLAIMER.md).
@@ -123,8 +123,8 @@ Rows are E2A responsibilities and seams (core design, Section 4.1). Cells name t
 | Workload and agent identity (`identity_resolver`, `credential_provider`) | **COMPOSE** | Entra workload federation (SI-01, E2A v1.8.0) | AWS: AgentCore Identity. Microsoft: Entra Agent ID. Google: Agent Identity (SPIFFE). Anthropic: vaults for MCP credentials. All Documented |
 | Long-term memory | **Gap** (E2A has short-term pruning only); COMPOSE candidate (B-1) | none | AWS: AgentCore Memory. Microsoft: Foundry memory (preview). Google: Memory Bank (GA). Anthropic: Managed Agents memory (preview). OpenAI: SDK sessions |
 | Idempotency of material effects, checkpoints | **RETAIN** (storage REPLACE) | E2A; DynamoDB, Firestore, Cosmos DB stores (e2a-adapters) | none at any provider |
-| Online evaluation | **Gap**: E2A's gate is offline; COMPOSE candidate (B-2) | none | AWS: AgentCore Evaluations. Microsoft: Foundry evaluations, Agent Optimizer. Google: Agent Evaluation, Simulation. Anthropic: Outcomes (preview). OpenAI: Evals **Retired** 30 November 2026 |
-| Release gate (offline) | **RETAIN** | `e2a.release` | none equivalent at any provider |
+| Online evaluation (`online_evaluator`) | **COMPOSE**: since E2A v1.9.0 a port, `BaseOnlineEvaluator`; E2A samples, budgets, redacts and submits after settlement (through the outbox when one is bound); a managed evaluator scores (Section 5.3) | E2A's `RecordingOnlineEvaluator`, `OutboxOnlineEvaluator`, `ScoringOnlineEvaluator`; no managed binding (Documented) | AWS: AgentCore Evaluations. Microsoft: Foundry evaluations, Agent Optimizer. Google: Agent Evaluation, Simulation. Anthropic: Outcomes (preview). OpenAI: Evals **Retired** 30 November 2026 |
+| Release gate (offline) | **RETAIN** | `e2a.release`; since E2A v1.9.0 the `e2a.evals` scorers (trajectory, refusal, schema, contains, no PII, groundedness), several trials per case, and the evidence kind (wiring, quality, live) with profile and model | none equivalent at any provider |
 | Observability (`observability_engine`) | **EXTEND** | `AWSObservability`, `AzureObservability`, `GCPObservability` | Anthropic: none separate. OpenAI: SDK tracing (Documented) |
 | Sandboxed execution | **EXTEND** through the delegated runtime; E2A has no sandbox of its own | through the delegated runtimes above | AWS: Firecracker microVM per session. Microsoft: hosted-agent sandboxes. Google: Agent Runtime. Anthropic: Managed Agents sandbox. OpenAI: sandbox agents, Codex harness |
 | Agent-to-agent (A2A) | **Gap** (B-3) | none | Microsoft: Foundry A2A (Documented). Google: ADK and Agent Platform (Documented). AWS: *To validate*. Anthropic, OpenAI: none found |
@@ -134,7 +134,23 @@ Rows are E2A responsibilities and seams (core design, Section 4.1). Cells name t
 - **The lifecycle stays E2A's.** Strands, Agent Framework, ADK, the Claude Agent SDK and the Agents SDK are peers of E2A's agent and workflow classes. E2A does not wrap them; it binds the *managed runtimes* they deploy to as a `delegated_runtime`, which EXTENDs: the managed agent does the work, and E2A keeps the claim, the governance stages, the outcome and the confirmation. Delegated runtimes get read tools only, so a material effect always goes through E2A's idempotent tool path.
 - **Managed policy composes, it does not replace.** AgentCore Policy and Foundry's tool-call guardrails decide allow or deny at the gateway. E2A still decides the order of stages, fails closed, and returns a typed refusal. The two compose: the managed decision becomes one stage's input.
 - **Where the family is stronger.** No provider offers idempotency claims for material effects, conditional commits, or an offline release gate that blocks a deployment. These stay RETAIN.
-- **Where the providers are ahead.** Long-term memory, online evaluation and A2A are gaps in the family today (Section 12).
+- **Where the providers are ahead.** Long-term memory and A2A are gaps in the family today (Section 12). Online evaluation has an E2A port since v1.9.0; the managed evaluators that would score its records are not bound (Section 5.3).
+
+### 5.3 Online evaluation: the E2A port and the managed evaluators
+
+E2A v1.9.0 defines what leaves a run for online evaluation and when. After a run settles, `BaseWorkflow` hands it to `config['online_evaluator']`. E2A decides whether to send it (`online_eval_sample_rate`, deterministic by correlation id), within a budget (`online_eval_max_per_minute`), and never fails or delays the request. What it sends is one record per run: identifiers (tenant, correlation id, idempotency key, workflow), the evaluation the agent made (`eval_outcome`), the path (`trajectory`: each tool call with read or modify, a payload hash, outcome and latency; each agent), the steps, the status and the answer, with personal data and credentials redacted. `OutboxOnlineEvaluator` writes the record to the outbox (topic `e2a.evaluation`), so the broker delivers it after the business transaction commits. `python -m e2a.evals promote` turns low-scoring, fallback and refused records into candidate cases for review; `calibration_report` compares a scorer with human labels.
+
+**Where a managed evaluator binds.**
+
+| Provider | Managed evaluation | How it would bind to the port | State |
+|---|---|---|---|
+| AWS | AgentCore Evaluations (LLM-as-judge and code evaluators, online and batch) | A `BaseOnlineEvaluator` that submits E2A's record, or an outbox consumer on `e2a.evaluation` | Documented |
+| Microsoft | Foundry evaluations; Agent Optimizer | As above | Documented |
+| Google | Agent Platform Agent Evaluation; Simulation | As above | Documented |
+| Anthropic | Outcomes (preview): self-evaluation against success criteria inside Managed Agents | Runs inside the delegated runtime; its result can be read back into `eval_outcome` | Documented |
+| OpenAI | Evals | None: Evals is retired on 30 November 2026 | — |
+
+No managed binding is implemented: this landscape has no provider account, so a binding could not be tested against the service. Each would be a replay-tested adapter once the provider's ingestion format is pinned. The order-to-cash landscape demo runs the port with `RecordingOnlineEvaluator` and promotes candidates from its records.
 
 ## 6. AWS
 
@@ -228,7 +244,7 @@ These are candidates, not commitments. Each would get its own design note first.
 | # | Candidate | Why | Disposition when built |
 |---|---|---|---|
 | B-1 | A long-term memory port, bound to AgentCore Memory, Foundry memory, Memory Bank and Managed Agents memory | Every provider has it; E2A has short-term pruning only | COMPOSE: E2A keeps tenant scoping and redaction |
-| B-2 | An online-evaluation hook beside the offline release gate | Providers evaluate production traces; E2A's gate runs before release | COMPOSE with the managed evaluators |
+| B-2 | An online-evaluation hook beside the offline release gate | Providers evaluate production traces; E2A's gate runs before release | **Port built** (E2A v1.9.0, `BaseOnlineEvaluator`); the managed bindings remain candidates (Section 5.3) |
 | B-3 | A2A for E2A agents (expose and call) | Foundry, ADK and Agent Platform support it | ADAPT at the edge, E2A governance inside |
 | B-4 | A2C writes the coding tools' standing context (`AGENTS.md`, Kiro steering, Copilot instructions, `CLAUDE.md`) from the request | The tools advise what AI-DLC enforces; one source keeps both aligned | Generation only |
 | B-5 | Align E2A's spans with the OpenTelemetry GenAI agent conventions once stable | Managed tracing (Foundry, AgentCore, Agent Platform) reads them | EXTEND |

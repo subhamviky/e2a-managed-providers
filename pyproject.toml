@@ -10,11 +10,11 @@ requires-python = ">=3.12"
 license = "Apache-2.0"
 dependencies = [
   # The E2A contracts this package implements. Pin the same tag the projects use.
-  "e2a-framework @ git+https://github.com/subhamviky/e2a-framework.git@v1.8.0",
+  "e2a-framework @ git+https://github.com/subhamviky/e2a-framework.git@v1.9.1",
   # E2A's cloud adapters and cloud profiles (stores, broker, secret store, identity claims), which
   # every provider profile extends. Their cloud SDKs come with the extras below: each cloud's extra
   # installs what its cloud profile binds.
-  "e2a-adapters @ git+https://github.com/subhamviky/e2a-framework.git@v1.8.0#subdirectory=adapters",
+  "e2a-adapters @ git+https://github.com/subhamviky/e2a-framework.git@v1.9.1#subdirectory=adapters",
   "pyyaml>=6.0",
   "httpx>=0.27",
 ]
