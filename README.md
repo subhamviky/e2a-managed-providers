@@ -20,7 +20,7 @@ to E2A), with HLD, LLD and diagrams, in [docs/design](docs/design/README.md).
 
 The three projects of the Order-to-Cash landscape
 ([order-to-cash-agentic-ai](https://github.com/subhamviky/order-to-cash-agentic-ai),
-[aws-reconciliation-engine](https://github.com/subhamviky/aws-reconciliation-engine),
+[payment-reconciliation-engine](https://github.com/subhamviky/payment-reconciliation-engine),
 [financial-settlement-platform](https://github.com/subhamviky/financial-settlement-platform))
 are built on [E2A](https://github.com/subhamviky/e2a-framework) and run on
 `SimulatedLLMService`, with cloud as Terraform and containers as Compose. This repository
