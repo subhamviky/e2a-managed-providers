@@ -2,7 +2,7 @@ import os
 
 import pytest
 
-PROFILES = ["anthropic_bedrock", "anthropic_claude_platform_aws", "openai_azure", "google_vertex", "ogx_aws"]
+PROFILES = ["anthropic_bedrock", "anthropic_claude_platform_aws", "openai_azure", "google_vertex", "gemini_api", "ogx_aws"]
 
 
 @pytest.fixture(autouse=True)

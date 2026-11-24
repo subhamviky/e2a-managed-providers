@@ -47,6 +47,7 @@ what it must.
 | `anthropic_claude_platform_aws` | Claude Platform on AWS (MCP connector, Managed Agents) | same AWS services | Bedrock Guardrails | Claude Managed Agents (`ant apply`) | `aws` | CloudWatch / X-Ray |
 | `openai_azure` | OpenAI on Azure AI Foundry (v1 Responses API, Entra ID) | text-embedding-3, Azure AI Search (hybrid + semantic ranker) | AI Content Safety (Prompt Shields) | Responses-API agent, APIM as MCP gateway | `azure`: Cosmos DB, Service Bus, outbox, Key Vault, Entra ID claims | Application Insights |
 | `google_vertex` | Gemini on Vertex AI | gemini-embedding, Vector Search (dense+sparse), Ranking API | Model Armor | Vertex AI Agent Engine, IAP MCP gateway | `gcp`: Firestore, Pub/Sub, outbox, Secret Manager, Identity Platform claims | Cloud Trace / Logging |
+| `gemini_api` | Gemini through the Gemini Developer API (free tier, API key) | gemini-embedding; retrieval stays with the service | E2A stages | — | `gcp`: Firestore, Pub/Sub, outbox, Secret Manager, Identity Platform claims | Cloud Trace / Logging |
 | `ogx_aws` | Llama (or any model) via OGX, formerly Llama Stack, on ECS (Bedrock inference) | OGX embeddings + vector stores | Bedrock Guardrails (OGX moderation in its Responses loop, optional) | OGX Responses API | `aws` | CloudWatch |
 
 Each pairing is the one most commonly used in practice: Claude mostly runs on Bedrock (and
@@ -109,6 +110,7 @@ e2a_managed/                     the vendor half; the neutral half is E2A's (doc
     anthropic_aws/   llm_service.py  delegated_runtime.py  managed_agents/  profiles/
     openai_azure/    llm_service.py  delegated_runtime.py  profiles/
     google_vertex/   llm_service.py  profiles/
+    google_gemini_api/  llm_service.py  profiles/   (GCP-01: free-tier Gemini)
     ogx/             llm_service.py  infra.py  distribution/config.yaml  terraform/  profiles/
     meta_llama/      the meta_llama_aws alias profile and old class names (one release)
   clouds/                        services shared by every provider on a cloud

@@ -22,7 +22,7 @@ from .conftest import PROFILES
 
 COSMOS_EMULATOR_KEY = "C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw=="
 CLOUD_OF = {"anthropic_bedrock": "aws", "anthropic_claude_platform_aws": "aws", "ogx_aws": "aws",
-            "google_vertex": "gcp", "openai_azure": "azure"}
+            "google_vertex": "gcp", "gemini_api": "gcp", "openai_azure": "azure"}
 BROKER_OF = {"aws": "SQSBroker", "gcp": "PubSubBroker", "azure": "ServiceBusBroker"}
 
 

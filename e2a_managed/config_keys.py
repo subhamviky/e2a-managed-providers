@@ -128,6 +128,12 @@ MANAGED_KEYS = [
     ConfigKey("vertex_agent_engine", "VERTEX_AGENT_ENGINE", None, str, _GCP,
               "VertexAgentEngineRuntime — projects/../reasoningEngines/.."),
 
+    # ---- Google (Gemini Developer API, GCP-01): the free-tier route to Gemini
+    ConfigKey("gemini_api_key", "GEMINI_API_KEY", None, str, _GCP,
+              "GeminiAPILLMService / GeminiAPIEmbeddingModel — AI Studio key (Secret Manager on Cloud Run)", secret=True),
+    ConfigKey("gemini_max_requests_per_day", "GEMINI_MAX_REQUESTS_PER_DAY", 0, int, _GCP,
+              "GeminiAPILLMService — per-process daily request budget (free tier); 0 = no budget; over it: HTTP 429"),
+
     # ---- OGX (formerly Llama Stack): the customer-run server in front of Llama or any model
     ConfigKey("ogx_url", "OGX_URL", "http://localhost:8321", str, _OGX,
               "every OGX client (the OpenAI SDK at <url>/v1)"),
