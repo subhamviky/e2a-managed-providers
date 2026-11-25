@@ -1,0 +1,38 @@
+name: gemini_api
+provider: google
+cloud: gcp
+# GCP-01: the free-tier route to Gemini. Cloud infrastructure (Firestore stores, Pub/Sub, Secret
+# Manager, identity claims) from e2a-adapters' "gcp" profile; the model from the Gemini Developer
+# API. No paid Google Cloud AI service is bound: retrieval and guardrails stay with the service
+# (E2A's own stages), which keeps the whole landscape inside the Always Free allowances.
+extends: gcp
+description: >
+  Gemini through the Gemini Developer API (AI Studio key, google-genai SDK) with gemini-embedding,
+  on Google Cloud's free tier: Firestore for E2A claims and checkpoints, Pub/Sub, Secret Manager,
+  Cloud Run identity, Cloud Logging and Trace. The free tier is rate-limited and Google may use
+  its prompts to improve its products: synthetic data only.
+features: [tool_use, structured_output, streaming, reasoning_effort, refusal_fallback, embeddings,
+           idempotency_store, checkpoint_store, telemetry, infra_as_code, release_pipeline]
+bindings:
+  llm_service: e2a_managed.providers.google_gemini_api.llm_service:GeminiAPILLMService
+  embedding_model: e2a_managed.providers.google_gemini_api.llm_service:GeminiAPIEmbeddingModel
+  observability_engine: e2a_managed.clouds.gcp.services:GCPObservability
+  infra_provisioner: e2a_managed.clouds.gcp.services:GCPManagedInfraProvisioner
+  release_pipeline: e2a_managed.clouds.gcp.services:GCPReleasePipeline
+config:
+  model_id: ${LLM_MODEL_ID:-gemini-3.6-flash}
+  fallback_model_id: ${LLM_FALLBACK_MODEL_ID}
+  reasoning_effort: ${LLM_REASONING_EFFORT:-low}
+  temperature: ${LLM_TEMPERATURE:-0.0}
+  llm_max_latency: ${LLM_MAX_LATENCY:-60}
+  context_budget: ${LLM_CONTEXT_BUDGET:-60000}
+  max_output_tokens: ${LLM_MAX_OUTPUT_TOKENS:-2048}
+  # free-tier limits, enforced before a call leaves the process (set them to your project's
+  # limits shown in AI Studio; the defaults are deliberately low)
+  max_rpm: ${LLM_MAX_RPM:-8}
+  max_tpm: ${LLM_MAX_TPM:-200000}
+  gemini_max_requests_per_day: ${GEMINI_MAX_REQUESTS_PER_DAY:-200}
+  llm_sdk_max_retries: ${LLM_SDK_MAX_RETRIES:-2}
+  embedding_model_id: ${EMBEDDING_MODEL_ID:-gemini-embedding-001}
+  embedding_dimensions: ${EMBEDDING_DIMENSIONS:-768}
+  otel_service_name: ${OTEL_SERVICE_NAME:-e2a-service}

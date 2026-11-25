@@ -28,13 +28,14 @@ e2a_managed = "e2a_managed"
 anthropic-aws = ["anthropic[bedrock,aws]>=2.0", "boto3>=1.40"]
 openai-azure = ["openai>=3.0", "e2a-managed-providers[azure]"]
 google-vertex = ["google-genai>=3.0", "e2a-managed-providers[gcp]"]
+gemini-api = ["google-genai>=3.0", "e2a-managed-providers[gcp]"]   # GCP-01: Gemini Developer API, free tier
 ogx = ["openai>=3.0", "boto3>=1.40"]
 meta-llama = ["e2a-managed-providers[ogx]"]   # alias, kept for one release
 aws = ["boto3>=1.40"]
 azure = ["azure-identity>=1.19", "azure-cosmos>=4.7", "azure-servicebus>=7.12", "azure-keyvault-secrets>=4.8"]
 gcp = ["google-auth>=2.30", "google-cloud-firestore>=2.16", "google-cloud-pubsub>=2.21", "google-cloud-secret-manager>=2.20"]
 otel = ["opentelemetry-sdk>=1.30", "opentelemetry-exporter-otlp>=1.30"]
-all = ["e2a-managed-providers[anthropic-aws,openai-azure,google-vertex,ogx,otel]"]
+all = ["e2a-managed-providers[anthropic-aws,openai-azure,google-vertex,gemini-api,ogx,otel]"]
 dev = ["pytest>=8.2", "pytest-asyncio>=0.24", "respx>=0.21", "moto[dynamodb]>=5.0", "e2a-managed-providers[all]"]
 
 [tool.setuptools.packages.find]

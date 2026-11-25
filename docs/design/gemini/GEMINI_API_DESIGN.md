@@ -9,9 +9,9 @@
 | Framework | E2A, with `e2a-adapters` and `e2a-managed-providers` |
 | Document type | Provider design document (HLD + LLD), Google Gemini series |
 | Author | Subham Gupta, Principal Platform Architect |
-| Source baseline | `e2a-framework` `v1.7.4`; `e2a-managed-providers` `main`: `VertexGeminiLLMService` (the `google-genai` SDK, which also reaches this API) |
-| Date | 16 November 2026 (product facts checked on this date) |
-| Status | Documented. The `generateContent` wire is Implemented for Agent Platform; no profile here uses the Developer API. |
+| Source baseline | `e2a-framework` `v1.9.1`; `e2a-managed-providers` `main`: the `gemini_api` profile, `GeminiAPILLMService` and `GeminiAPIEmbeddingModel` (subclasses of the Vertex adapters, `google-genai` with an API key) |
+| Date | 24 November 2026 (the `gemini_api` profile; product facts checked on 16 November 2026) |
+| Status | Implemented: the `gemini_api` profile (`generateContent`, offline replay and `check_llm_service`). Interactions API, managed agents, remote MCP and File Search: Documented. |
 
 > **Disclaimer.** This is independent reference material for studying software architecture. It has no affiliation with, and no endorsement by, Google, Amazon / AWS, Microsoft or any other company named, and it is not a substitute for any provider's products, documentation or terms. Product names are trademarks of their owners. Product facts change: they were checked on the date shown, against the sources listed in the last section; check them again before use. Provided "as is", without warranty; not legal, compliance, security or procurement advice. Full text: [DISCLAIMER.md](../DISCLAIMER.md).
 
@@ -31,7 +31,17 @@
 
 ## 2. Profile
 
-No profile here targets the Developer API. The `google-genai` SDK reaches both the Developer API and Agent Platform, so a profile would bind a subclass of `VertexGeminiLLMService` that builds the client with an API key (from Secret Manager, AWS Secrets Manager or Key Vault, by the cloud profile the service runs on) instead of `vertexai=True`. Everything else would come from that cloud profile.
+The **`gemini_api`** profile (hub design note GCP-01) targets the Developer API. It extends the `gcp` cloud profile (Firestore stores, Pub/Sub, Secret Manager, identity claims) and binds:
+
+| Seam | Binding |
+|---|---|
+| `llm_service` | `GeminiAPILLMService`: `VertexGeminiLLMService` with the client built from an API key (`gemini_api_key`, env `GEMINI_API_KEY`; on Cloud Run a Secret Manager secret mounted as that variable), not `vertexai=True`; request `labels` and a Vertex `cached_content` name are not sent |
+| `embedding_model` | `GeminiAPIEmbeddingModel` |
+| `observability_engine`, `infra_provisioner`, `release_pipeline` | the Google Cloud classes |
+
+No paid Google Cloud AI service is bound (no Vector Search, Ranking API, Model Armor, Agent Engine): retrieval and guardrails stay with the service, which keeps a deployment inside Google Cloud's Always Free allowances. The free tier is rate-limited, and on it Google may use prompts to improve its products: synthetic data only.
+
+**Free-tier limits in the process.** The profile sets E2A's `max_rpm` and `max_tpm` low (8 and 200,000 by default; set them to the project's limits shown in AI Studio). `gemini_max_requests_per_day` (200 by default) is a per-process daily budget: a call over it never leaves the process and fails as HTTP 429, which E2A classifies as throttled.
 
 ## 3. Dispositions that differ from the core
 
@@ -61,7 +71,7 @@ None beyond the core's Section 5 while E2A uses `generateContent`. With remote M
 | Signal (Gemini "API errors") | E2A result today | Design intent |
 |---|---|---|
 | 429 `rate_limit_exceeded`, `too_many_requests` | throttled: retried within the deadline | same |
-| 429 `quota_exceeded` (daily quota) | throttled: retried | no retry: the quota resets later (follow-up) |
+| 429 `quota_exceeded` (daily quota) | throttled: retried | `gemini_api` stops at its own daily budget first (no call sent); a retry policy that recognises the daily quota stays a follow-up |
 | 402 `payment_required` (prepay credit depleted) | deterministic: no retry, `FAILED` | same, with an alert |
 | 500 `api_error`, 503 `service_unavailable`, 504 `deadline_exceeded` | transient or overloaded: retried within the deadline | same |
 | 400 `invalid_request`, `failed_precondition`; 404 `model_not_found` | deterministic: no retry, `FAILED` | same (a retired model id surfaces here) |
@@ -82,7 +92,7 @@ None beyond the core's Section 5 while E2A uses `generateContent`. With remote M
 | Item | Status |
 |---|---|
 | `generateContent` wire, structured output, thinking levels (lowered per model), refusal finish reasons | Implemented on Agent Platform (offline replay, `check_llm_service`); the same SDK reaches this API |
-| A Developer API profile | Documented (Section 2) |
+| The `gemini_api` profile: Developer API endpoint and key header, no Vertex-only fields, structured output, the daily budget (HTTP 429, reset at 00:00 UTC), binding and free-tier defaults; E2A's model contract (10 checks) | Implemented (`tests/test_gemini_api.py`, `tests/test_llm_contract.py`) |
 | Interactions API transport, safety-code mapping, daily-quota classification | Documented: follow-ups |
 | Managed agents, remote MCP, File Search | Documented (managed agents in preview) |
 | Live behaviour, quotas, latency | Not covered: needs live tests |

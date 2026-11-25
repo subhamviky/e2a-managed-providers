@@ -351,6 +351,8 @@ class ReplayTransport:
 
 
 # ------------------------------------------------------------------ offline clients per provider
+OFFLINE_LIMITS = {"max_rpm": 600, "max_tpm": 300000, "gemini_max_requests_per_day": 0}
+
 WIRE_OF_PROVIDER = {"anthropic": "anthropic", "openai": "openai_responses", "google": "gemini", "ogx": "openai_chat"}
 
 
@@ -376,6 +378,10 @@ def offline_client(provider: str, transport: ReplayTransport, config: Optional[D
         from google import genai
         from google.genai import types
         from google.oauth2.credentials import Credentials
+        if config.get("platform") == "gemini_api":            # GCP-01: the Developer API, key auth
+            return genai.Client(api_key="offline-replay-key",
+                                http_options=types.HttpOptions(httpx_async_client=httpx.AsyncClient(transport=transport.httpx()),
+                                                               httpx_client=httpx.Client(transport=transport.httpx())))
         return genai.Client(vertexai=True, project="offline-replay", location="us-central1",
                             credentials=Credentials(token="offline-replay-token"),
                             http_options=types.HttpOptions(httpx_async_client=httpx.AsyncClient(transport=transport.httpx()),
@@ -392,6 +398,9 @@ def offline_llm_service(profile: str, responder: Responder, **config: Any):
     """(llm_service, transport): the profile's bound model adapter, offline.
     Example: offline_llm_service("openai_azure", simulated(build_o2c_llm()))."""
     from .bindings import bindings_from_profile
+    # a replayed wire has no quota: a profile's free-tier limits (gemini_api) would only throttle the
+    # suite. E2A's defaults apply unless the caller sets a limit (a test of the limits does).
+    config = {**OFFLINE_LIMITS, **config}
     b = bindings_from_profile(profile, overrides=config)
     wire = WIRE_OF_PROVIDER[b.profile.provider]
     transport = ReplayTransport(wire, responder)
