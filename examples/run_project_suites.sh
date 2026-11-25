@@ -21,7 +21,7 @@ PROFILES=("$@")
 [ ${#PROFILES[@]} -eq 0 ] && PROFILES=($(cd "$HERE" && python -m e2a_managed profiles | awk '{print $1}'))
 SUITES=(
   "order-to-cash-agentic-ai/o2c-agent-service|o2c_agent_service.services.llm:build_o2c_llm"
-  "aws-reconciliation-engine/reconciliation-service|reconciliation_service.services.llm:build_triage_llm"
+  "payment-reconciliation-engine/reconciliation-service|reconciliation_service.services.llm:build_triage_llm"
   "financial-settlement-platform/audit-ai-service|audit_ai_service.services.llm:build_audit_llm"
 )
 # The SDKs every profile's model adapter needs, plus the test tooling the projects use.

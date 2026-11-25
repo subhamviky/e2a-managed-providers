@@ -59,8 +59,8 @@ jobs:
           path: order-to-cash-agentic-ai
       - uses: actions/checkout@v4
         with:
-          repository: subhamviky/aws-reconciliation-engine
-          path: aws-reconciliation-engine
+          repository: subhamviky/payment-reconciliation-engine
+          path: payment-reconciliation-engine
       - uses: actions/checkout@v4
         with:
           repository: subhamviky/financial-settlement-platform
