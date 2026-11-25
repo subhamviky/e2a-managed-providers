@@ -13,6 +13,7 @@ functions from configuration: E2A_PROVIDER_PROFILE + E2A_SWAP_FACTORIES.
 """
 import importlib
 import os
+import sys
 from typing import Any, Dict
 
 from .bindings import bindings_from_profile
@@ -70,3 +71,13 @@ def wrap_factory(target: str, profile: str, live: bool = False) -> None:
     factory._e2a_wrapped = True
     factory.__wrapped__ = original
     setattr(module, attr, factory)
+    # A project's conftest (or app module) may already hold `from ...llm import factory`, imported before this swap ran
+    # (pytest loads some conftest files before any plugin's configure hook): such a name would keep the original.
+    # Point every module-level alias of the original at the wrapper too.
+    for other in list(sys.modules.values()):
+        namespace = getattr(other, "__dict__", None)
+        if not isinstance(namespace, dict) or other is module:
+            continue
+        for name, value in list(namespace.items()):
+            if value is original:
+                namespace[name] = factory

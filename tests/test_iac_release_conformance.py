@@ -79,3 +79,23 @@ def test_swap_builds_a_self_binding_factory_with_the_profile_unset(monkeypatch):
     assert kind == "wrapped" and isinstance(sim, SimulatedLLMService) and profile == "gemini_api"
     assert seen["profile_during"] is None                                  # the project's factory saw no profile
     assert __import__("os").environ["E2A_PROVIDER_PROFILE"] == "gemini_api"   # and it is back afterwards
+
+
+def test_swap_also_replaces_aliases_imported_before_it_ran(monkeypatch):
+    """pytest may load a project's conftest (`from x.llm import build_llm`) before the plugin's configure hook:
+    the conftest's own name must point at the wrapper too, or the suite runs on the unswapped model."""
+    import sys
+    import types
+    from e2a_simulated_llm import SimulatedLLMService
+    from e2a_managed import swap
+
+    source = types.ModuleType("fake_llm_source")
+    source.build_llm = lambda: SimulatedLLMService()
+    consumer = types.ModuleType("fake_llm_consumer")
+    consumer.build_llm = source.build_llm                       # an alias imported earlier
+    monkeypatch.setitem(sys.modules, "fake_llm_source", source)
+    monkeypatch.setitem(sys.modules, "fake_llm_consumer", consumer)
+    monkeypatch.setattr(swap, "managed_replay", lambda sim, profile: ("wrapped", profile))
+    swap.wrap_factory("fake_llm_source:build_llm", "gemini_api")
+    assert source.build_llm() == ("wrapped", "gemini_api")
+    assert consumer.build_llm() == ("wrapped", "gemini_api")      # the alias too
