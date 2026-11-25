@@ -2,7 +2,14 @@
 
 ## Not proven, by design
 
-* **No live call was made.** The adapters are exercised through the real provider SDKs
+* **One profile has run live: `gemini_api`.** On 25 November 2026 the GenAI assistant used it in a
+  Google Cloud trial project (`gemini-3.5-flash-lite`, free tier): the calls worked, and showed
+  what offline replay cannot: the model sometimes answers 503 "high demand" and then a call can
+  wait its whole SDK timeout (set `LLM_SDK_TIMEOUT` and `LLM_SDK_MAX_RETRIES` low so an agent
+  falls back quickly); and Gemini wraps JSON in a markdown code fence even when asked for plain
+  JSON (the agent must read a JSON object from a fence). Details in
+  `docs/design/gemini/GEMINI_API_DESIGN.md`, Section 7. The statement below holds for the other profiles.
+* **No live call was made** (all profiles except `gemini_api`). The adapters are exercised through the real provider SDKs
   with the HTTP layer replaced. That proves request building, auth signing (SigV4 for
   Bedrock), parsing, streaming and tool-call mapping as the SDKs implement them. It does
   not prove service-side behaviour: quotas, latency, model quality, content-filter
