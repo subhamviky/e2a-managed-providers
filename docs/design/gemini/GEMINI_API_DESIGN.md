@@ -95,7 +95,17 @@ None beyond the core's Section 5 while E2A uses `generateContent`. With remote M
 | The `gemini_api` profile: Developer API endpoint and key header, no Vertex-only fields, structured output, the daily budget (HTTP 429, reset at 00:00 UTC), binding and free-tier defaults; E2A's model contract (10 checks) | Implemented (`tests/test_gemini_api.py`, `tests/test_llm_contract.py`) |
 | Interactions API transport, safety-code mapping, daily-quota classification | Documented: follow-ups |
 | Managed agents, remote MCP, File Search | Documented (managed agents in preview) |
-| Live behaviour, quotas, latency | Not covered: needs live tests |
+| Live behaviour, quotas, latency | The `gemini_api` profile ran live on 25 November 2026 (see below); the Interactions API, managed agents, remote MCP and File Search did not |
+
+**Live use of the `gemini_api` profile (25 November 2026).** Used by the GenAI assistant on Cloud Run with `gemini-3.5-flash-lite` and a key from a project without billing. The account's free limits for that model were 15 requests and 250,000 tokens per minute and 500 requests per day, which the profile's defaults (8, 200,000 and 200) stay under; set `LLM_MAX_RPM`, `LLM_MAX_TPM` and `GEMINI_MAX_REQUESTS_PER_DAY` from the AI Studio rate-limit page (for example 12, 200,000 and 400, leaving a margin). What it showed:
+
+| Observation | Consequence for a service using the profile |
+|---|---|
+| One call answered `503 UNAVAILABLE`, "high demand", and the client waited its default 60-second timeout | set `LLM_SDK_TIMEOUT` (12 s was used) and `LLM_SDK_MAX_RETRIES` (1), so the agent's fallback answers within seconds |
+| A busy model answered an investigation in 79 s and a proposal in 24 s in the one scenario run; calls with no model took about a second | the free tier's latency is not a landscape property; plan for degraded answers |
+| The model returned its JSON inside a markdown code fence | an agent that parses the reply must accept a fenced or surrounded JSON object, or every such reply falls back |
+| A reply that fails an agent's evaluation runs `_fallback` and ends the workflow (E2A observation O-18) | repair what can be repaired in `_evaluate_output` (the request read by rules) instead of ending the request |
+| Billing stayed at 0.00 | a key created in a project with no billing account stayed on the free tier |
 
 ## 8. Sources (checked 16 November 2026)
 
