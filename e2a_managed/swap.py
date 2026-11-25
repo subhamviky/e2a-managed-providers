@@ -12,6 +12,7 @@ The pytest plugin (e2a_managed.pytest_plugin) applies this to a project's factor
 functions from configuration: E2A_PROVIDER_PROFILE + E2A_SWAP_FACTORIES.
 """
 import importlib
+import os
 from typing import Any, Dict
 
 from .bindings import bindings_from_profile
@@ -56,7 +57,15 @@ def wrap_factory(target: str, profile: str, live: bool = False) -> None:
         return
 
     def factory(*args, **kwargs):
-        sim = original(*args, **kwargs)
+        # A project's factory may bind E2A_PROVIDER_PROFILE itself (GCP-01: the three Python services do): then, with
+        # the profile set, it returns the real provider model, not the rule-based SimulatedLLMService this swap
+        # wraps. Build the project's own simulated model with the profile unset, then bind the profile's transport.
+        saved = os.environ.pop("E2A_PROVIDER_PROFILE", None)
+        try:
+            sim = original(*args, **kwargs)
+        finally:
+            if saved is not None:
+                os.environ["E2A_PROVIDER_PROFILE"] = saved
         return (managed_live if live else managed_replay)(sim, profile)
     factory._e2a_wrapped = True
     factory.__wrapped__ = original
