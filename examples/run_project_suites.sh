@@ -41,6 +41,17 @@ state_env() {                       # $1 = project dir; prints the env of its st
   return 0
 }
 
+# Tests that exercise a project's model factory ITSELF (that it follows E2A_PROVIDER_PROFILE, GCP-01) cannot run under
+# a swap that replaces that factory: they are skipped here and run in the project's own CI.
+deselects() {                       # $1 = project dir; prints --deselect arguments
+  case "$1" in
+    *o2c-agent-service) echo "--deselect tests/test_free_tier.py::test_the_model_is_the_simulated_one_unless_a_profile_is_named";;
+    *reconciliation-service) echo "--deselect tests/test_cloud_run_identity.py::test_the_triage_model_follows_the_provider_profile";;
+    *audit-ai-service) echo "--deselect tests/test_cloud_run_identity.py::test_the_model_follows_the_provider_profile";;
+  esac
+  return 0
+}
+
 python_for() {                      # $1 = project dir; prints the python to use
   if [ "${ISOLATED:-0}" != "1" ]; then command -v python; return; fi
   local venv="$VENVS_DIR/$(basename "$1")"
@@ -59,7 +70,7 @@ status=0
 run_one() {                         # $1 dir  $2 factory  $3 profile  $4 label  $5 extra env
   local out rc summary
   out=$(cd "$1" && env $5 E2A_PROVIDER_PROFILE="$3" E2A_SWAP_FACTORIES="$2" \
-        "$py" -m pytest -q -rs -p e2a_managed.pytest_plugin -p no:cacheprovider 2>&1) && rc=0 || rc=$?
+        "$py" -m pytest -q -rs -p e2a_managed.pytest_plugin -p no:cacheprovider $(deselects "$1") 2>&1) && rc=0 || rc=$?
   summary=$(echo "$out" | grep -E "passed|failed|error" | tail -1)
   printf '%-32s %-50s %-10s %s\n' "$3" "${1#$PROJECTS_DIR/}" "$4" "$summary"
   [ -n "${EVIDENCE_FILE:-}" ] && printf '| %s | %s | %s | %s |\n' "$3" "${1#$PROJECTS_DIR/}" "$4" "$summary" >> "$EVIDENCE_FILE"

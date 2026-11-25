@@ -53,3 +53,49 @@ def test_swap_keeps_the_simulator_s_surface():
 def test_this_package_conforms_to_e2a():
     findings = [f for f in check_paths([str(ROOT / "e2a_managed")]) if f.severity.lower() == "error"]
     assert not findings, "\n".join(map(str, findings))
+
+
+def test_swap_builds_a_self_binding_factory_with_the_profile_unset(monkeypatch):
+    """A project factory that reads E2A_PROVIDER_PROFILE itself (the GCP-01 services) must hand the swap its own
+    simulated model, not the provider's real one; the profile is restored afterwards."""
+    import sys
+    import types
+    from e2a_simulated_llm import SimulatedLLMService
+    from e2a_managed import swap
+
+    seen = {}
+
+    def build_llm(profile=None):
+        seen["profile_during"] = __import__("os").environ.get("E2A_PROVIDER_PROFILE")
+        return SimulatedLLMService()
+
+    module = types.ModuleType("fake_project_llm")
+    module.build_llm = build_llm
+    monkeypatch.setitem(sys.modules, "fake_project_llm", module)
+    monkeypatch.setenv("E2A_PROVIDER_PROFILE", "gemini_api")
+    monkeypatch.setattr(swap, "managed_replay", lambda sim, profile: ("wrapped", sim, profile))
+    swap.wrap_factory("fake_project_llm:build_llm", "gemini_api")
+    kind, sim, profile = module.build_llm()
+    assert kind == "wrapped" and isinstance(sim, SimulatedLLMService) and profile == "gemini_api"
+    assert seen["profile_during"] is None                                  # the project's factory saw no profile
+    assert __import__("os").environ["E2A_PROVIDER_PROFILE"] == "gemini_api"   # and it is back afterwards
+
+
+def test_swap_also_replaces_aliases_imported_before_it_ran(monkeypatch):
+    """pytest may load a project's conftest (`from x.llm import build_llm`) before the plugin's configure hook:
+    the conftest's own name must point at the wrapper too, or the suite runs on the unswapped model."""
+    import sys
+    import types
+    from e2a_simulated_llm import SimulatedLLMService
+    from e2a_managed import swap
+
+    source = types.ModuleType("fake_llm_source")
+    source.build_llm = lambda: SimulatedLLMService()
+    consumer = types.ModuleType("fake_llm_consumer")
+    consumer.build_llm = source.build_llm                       # an alias imported earlier
+    monkeypatch.setitem(sys.modules, "fake_llm_source", source)
+    monkeypatch.setitem(sys.modules, "fake_llm_consumer", consumer)
+    monkeypatch.setattr(swap, "managed_replay", lambda sim, profile: ("wrapped", profile))
+    swap.wrap_factory("fake_llm_source:build_llm", "gemini_api")
+    assert source.build_llm() == ("wrapped", "gemini_api")
+    assert consumer.build_llm() == ("wrapped", "gemini_api")      # the alias too
