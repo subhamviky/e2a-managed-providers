@@ -1,5 +1,7 @@
 # e2a-managed-providers
 
+![Managed Provider Bindings](docs/assets/managed-providers-banner.png)
+
 [![ci](https://github.com/subhamviky/e2a-managed-providers/actions/workflows/ci.yml/badge.svg)](https://github.com/subhamviky/e2a-managed-providers/actions/workflows/ci.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
