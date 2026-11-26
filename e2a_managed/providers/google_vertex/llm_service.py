@@ -42,6 +42,10 @@ _LEVELS = {
 }
 _DEFAULT_LEVELS = ("low", "medium", "high")
 
+# Model families that take no thinking setting at all: the API answers 400 "Thinking level is not supported for
+# this model" (Gemma 4 on the Gemini Developer API, probed live 26 November 2026). They are sent no thinking_config.
+_NO_THINKING_CONTROL = ("gemma",)
+
 
 def thinking_level(model_id: str, effort: str) -> str:
     """E2A's effort as a thinking_level the model accepts: the requested level when it does,
@@ -92,7 +96,7 @@ class VertexGeminiLLMService(ManagedLLMService):
         if stop_sequences:
             cfg["stop_sequences"] = stop_sequences
         effort = self._effort(self._param("reasoning_effort", config, kwargs))
-        if effort:
+        if effort and not model_id.startswith(_NO_THINKING_CONTROL):
             cfg["thinking_config"] = ({"thinking_budget": _BUDGET.get(effort, 8192)} if model_id.startswith("gemini-2")
                                       else {"thinking_level": thinking_level(model_id, effort)})
         if kwargs.get("response_schema"):

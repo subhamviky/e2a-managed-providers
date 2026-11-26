@@ -169,6 +169,16 @@ async def test_gemini_2_5_still_gets_a_thinking_budget():
     assert cfg.get("thinkingBudget", cfg.get("thinking_budget")) == 24576
 
 
+async def test_a_gemma_model_is_sent_no_thinking_setting():
+    """The Gemini Developer API refuses a thinking level for Gemma 4 (live probe, GCP-02): the request carries none,
+    while its system instruction and other settings are unchanged."""
+    svc, rt = offline_llm_service("google_vertex", lambda m: "ok", model_id="gemma-4-26b-a4b-it")
+    await svc.process_inference([SYSTEM, USER], tenant_id="acme", reasoning_effort="high")
+    body = rt.requests[-1]["body"]
+    assert "thinkingConfig" not in body["generationConfig"] and "thinking_config" not in body["generationConfig"]
+    assert body.get("systemInstruction") or body.get("system_instruction")
+
+
 # ------------------------------------------------------------------ provider error classes (P-2)
 @pytest.mark.parametrize("code", ["credit_balance_exhausted", "organization_spend_limit_exceeded",
                                   "project_spend_limit_exceeded", "organization_usage_limit_exceeded"])
