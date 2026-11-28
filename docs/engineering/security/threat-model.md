@@ -1,6 +1,6 @@
 # Threat model: e2a-managed-providers
 
-- **Status:** Reviewed 2026-11-28 · STRIDE for a provider layer: the risks are credentials, data sent to providers, and model behaviour.
+- **Status:** Draft 2026-11-28, awaiting owner review · STRIDE for a provider layer: the risks are credentials, data sent to providers, and model behaviour.
 
 | # | Threat | Control | Evidence |
 |---|---|---|---|
