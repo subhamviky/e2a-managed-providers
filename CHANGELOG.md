@@ -8,4 +8,4 @@ Newest first. [Keep a Changelog](https://keepachangelog.com). This file was star
 
 ## v0.2.0
 ### Added
-- The `gemini_api` profile for the Gemini Developer API's free tier (used by the Google Cloud landscape), and the model lifecycle check (a configured model past its retirement date fails).
+- The `gemini_api` profile for the Gemini Developer API (used by the Google Cloud landscape), and the model lifecycle check (a configured model past its retirement date fails).

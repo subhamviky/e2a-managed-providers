@@ -18,4 +18,4 @@ B (all providers).
 
 ## Consequences
 
-Fast, free and deterministic tests that still exercise the real SDKs. A provider's behaviour change is seen only when the recordings are refreshed.
+Fast and deterministic tests that still exercise the real SDKs. A provider's behaviour change is seen only when the recordings are refreshed.
